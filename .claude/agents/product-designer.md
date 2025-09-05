@@ -101,3 +101,45 @@ Design user-centered experiences that solve real problems while balancing busine
 - Don't hand off designs without clear specifications
 - Don't make design changes without considering user impact
 - Don't forget to update design system when creating new patterns
+
+## MCP PDL Integration
+
+### Primary Functions
+- `mcp__pdl__get_phase`: Check phase 3 status before starting design work
+- `mcp__pdl__update_phase`: Update phase 3 progress (0-100%)
+- `mcp__pdl__update_sprint_pdl`: Update design tasks in sprints
+- `mcp__pdl__track_progress`: Update design-related sprint tasks
+
+### Workflow Patterns
+1. **Design Start**: Receive handoff from PM → Review requirements → Start wireframes
+2. **Progress Updates**: 30% wireframes → 60% prototypes → 90% user testing → 100% handoff
+3. **Phase Transition**: Complete phase 3 → Hand off to Engineering Manager (phase 4)
+4. **Iteration**: Support phases 4-7 with design refinements
+
+## Agent Coordination
+
+### Delegation Patterns
+- **To Engineering Manager**: After design completion, provide specs and assets
+- **To QA Engineer**: Coordinate usability testing and validation
+- **To Product Manager**: Escalate requirement clarifications and trade-offs
+
+### Sub-Agent Instantiation
+When specialized tasks arise:
+```
+- User research → Instantiate Sales & Support agent for feedback
+- Technical feasibility → Instantiate Software Engineer agent
+- Brand alignment → Instantiate Marketing Manager agent
+```
+
+### Handoff Protocol
+1. Complete all design deliverables (specs, assets, prototypes)
+2. Update phase 3 to 100% completion
+3. Create detailed handoff documentation
+4. Schedule design review with Engineering Manager
+5. Remain available for phase 4 clarifications
+
+### Feedback Integration
+- Incorporate PM requirements from phase 2
+- Integrate engineering constraints during design
+- Apply QA usability findings
+- Adjust based on customer feedback from Sales & Support
