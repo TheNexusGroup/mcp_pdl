@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "mobile-app-redesign",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "full_path": "/home/user/projects/mobile-app-redesign",
+    "description": "Complete redesign of our mobile application with improved UX and performance",
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-02-01T14:22:00.000Z"
+  },
+  "pdl": {
+    "current_phase": 3,
+    "start_phase": 1,
+    "phases_completed": [1, 2],
+    "total_sprints": 4,
+    "active_sprints": ["design-sprint-2", "prototype-validation"]
+  },
+  "team": {
+    "product_manager": "Alice Johnson",
+    "product_designer": "Bob Smith",
+    "engineering_manager": "Carol Davis",
+    "engineers": ["Dave Wilson", "Eve Brown", "Frank Miller"],
+    "qa_engineers": ["Grace Lee"],
+    "marketing_manager": "Henry Chen",
+    "sales_support": ["Ivy Taylor", "Jack Wilson"]
+  },
+  "mcp_server": {
+    "host": "localhost",
+    "port": 3001,
+    "database_path": "data/pdl.sqlite",
+    "connection_string": "sqlite:data/pdl.sqlite"
+  },
+  "settings": {
+    "auto_transition": false,
+    "notification_channels": ["slack", "email"],
+    "default_sprint_duration_days": 14,
+    "quality_gates_enabled": true
+  }
+}
