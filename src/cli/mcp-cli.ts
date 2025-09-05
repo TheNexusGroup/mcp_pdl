@@ -44,7 +44,6 @@ program
       console.log('✅ MCP PDL project initialized successfully!');
       console.log(`Project Name: ${config.project.name}`);
       console.log(`Project ID: ${config.project.id}`);
-      console.log(`Starting Phase: ${config.pdl.current_phase}`);
       console.log(`Config Location: ${join(cwd, '.claude/.mcp.config')}`);
       
     } catch (error) {
@@ -71,20 +70,12 @@ program
       console.log(`Project: ${config.project.name}`);
       console.log(`ID: ${config.project.id}`);
       console.log(`Path: ${config.project.full_path}`);
-      console.log(`Current Phase: ${config.pdl.current_phase}/7`);
-      console.log(`Completed Phases: ${config.pdl.phases_completed.join(', ') || 'None'}`);
-      console.log(`Total Sprints: ${config.pdl.total_sprints}`);
-      console.log(`Active Sprints: ${config.pdl.active_sprints.join(', ') || 'None'}`);
-      
-      if (config.team) {
-        console.log('\nTeam:');
-        Object.entries(config.team).forEach(([role, members]) => {
-          if (members) {
-            const memberList = Array.isArray(members) ? members.join(', ') : members;
-            console.log(`  ${role}: ${memberList}`);
-          }
-        });
+      if (config.project.description) {
+        console.log(`Description: ${config.project.description}`);
       }
+      console.log(`Created: ${config.project.created_at}`);
+      console.log(`Updated: ${config.project.updated_at}`);
+      console.log('\nNote: Project state is managed by the MCP PDL server.');
       
     } catch (error) {
       console.error('Error getting project status:', error);

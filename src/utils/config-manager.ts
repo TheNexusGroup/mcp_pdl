@@ -35,8 +35,7 @@ export class MCPConfigManager {
   static async createProjectConfig(
     projectPath: string,
     projectName: string,
-    description?: string,
-    teamComposition?: any
+    description?: string
   ): Promise<MCPConfig> {
     const claudeDir = join(projectPath, this.CLAUDE_DIR);
     const configPath = join(claudeDir, this.CONFIG_FILENAME);
@@ -54,30 +53,13 @@ export class MCPConfigManager {
       version: "1.0.0",
       project: {
         name: projectName,
-        id: uuidv4(),
+        id: uuidv4(),  // Unique Claude project ID for cross-reference
         full_path: projectPath,
         description: description || '',
         created_at: now,
         updated_at: now
-      },
-      team: teamComposition || {},
-      pdl: {
-        current_phase: 1,
-        start_phase: 1,
-        phases_completed: [],
-        total_sprints: 0,
-        active_sprints: []
-      },
-      settings: {
-        auto_transition: false,
-        notification_channels: [],
-        default_sprint_duration_days: 14,
-        quality_gates_enabled: true
-      },
-      mcp_server: {
-        database_path: "data/pdl.sqlite"
       }
-    } as MCPConfig;
+    };
 
     await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
     return config;
@@ -130,17 +112,6 @@ export class MCPConfigManager {
       }
     }
 
-    if (!config.pdl) {
-      errors.push('Missing PDL configuration');
-    } else {
-      if (config.pdl.current_phase < 1 || config.pdl.current_phase > 7) {
-        errors.push('Invalid current phase (must be 1-7)');
-      }
-      if (config.pdl.start_phase < 1 || config.pdl.start_phase > 7) {
-        errors.push('Invalid start phase (must be 1-7)');
-      }
-    }
-
     return {
       isValid: errors.length === 0,
       errors
@@ -168,39 +139,11 @@ export class MCPConfigManager {
       version: "1.0.0",
       project: {
         name: "my-awesome-project",
-        id: uuidv4(),
+        id: uuidv4(),  // Unique Claude project ID
         full_path: "/path/to/my-awesome-project",
-        description: "An example project demonstrating the MCP PDL workflow",
+        description: "An example project using MCP PDL",
         created_at: now,
         updated_at: now
-      },
-      pdl: {
-        current_phase: 3,
-        start_phase: 1,
-        phases_completed: [1, 2],
-        total_sprints: 5,
-        active_sprints: ["design-sprint-1", "prototype-sprint-2"]
-      },
-      team: {
-        product_manager: "Alice Johnson",
-        product_designer: "Bob Smith",
-        engineering_manager: "Carol Davis",
-        engineers: ["Dave Wilson", "Eve Brown"],
-        qa_engineers: ["Frank Miller"],
-        marketing_manager: "Grace Lee",
-        sales_support: ["Henry Chen"]
-      },
-      mcp_server: {
-        host: "localhost",
-        port: 3001,
-        database_path: "data/pdl.sqlite",
-        connection_string: "sqlite:data/pdl.sqlite"
-      },
-      settings: {
-        auto_transition: true,
-        notification_channels: ["slack", "email"],
-        default_sprint_duration_days: 10,
-        quality_gates_enabled: true
       }
     };
   }
