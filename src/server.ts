@@ -7,13 +7,14 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { Database } from './storage/database.js';
+import { getDatabase, DatabaseAdapter } from './storage/database-factory.js';
 import { PDLFunctionHandlers } from './handlers/functions.js';
 import { RoadmapFunctionHandlers } from './handlers/roadmap-functions.js';
 
-const db = new Database();
-const handlers = new PDLFunctionHandlers(db);
-const roadmapHandlers = new RoadmapFunctionHandlers(db);
+// Initialize database asynchronously
+let db: DatabaseAdapter;
+let handlers: PDLFunctionHandlers;
+let roadmapHandlers: RoadmapFunctionHandlers;
 
 const server = new Server(
   {
@@ -670,7 +671,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function main() {
+async function main(): Promise<void> {
+  try {
+    // Initialize database first
+    console.error('Initializing database...');
+    db = await getDatabase();
+    handlers = new PDLFunctionHandlers(db.getUnderlyingDatabase() as any);
+    roadmapHandlers = new RoadmapFunctionHandlers(db.getUnderlyingDatabase() as any);
+    console.error('Database initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    throw error;
+  }
+  
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('MCP PDL Server running on stdio');
