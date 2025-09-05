@@ -1,0 +1,34 @@
+[Unit]
+Description=MCP PDL Server - Product Development Lifecycle Management
+Documentation=https://github.com/TheNexusGroup/mcp_pdl
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=persist
+Group=persist
+WorkingDirectory=/home/persist/repos/lib/mcp_pdl
+Environment=NODE_ENV=production
+Environment=PDL_DATA_PATH=/home/persist/repos/lib/mcp_pdl/data
+ExecStart=/usr/bin/node /home/persist/repos/lib/mcp_pdl/pdl-daemon.js
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-pdl
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/persist/repos/lib/mcp_pdl/data
+ProtectHome=read-only
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
