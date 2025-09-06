@@ -199,3 +199,4 @@ When agents are working on projects:
 3. Update regularly: Use appropriate update functions
 4. Track detailed work: Use sprints and PDL cycles for granular tracking
 5. Report accurately: Always use real completion percentages
+- IMPORTANT - DO NOT FUCKING MIGRATE MANUALLY. THE PDL SYSTEM MUST BE ABLE TO AUTO-MIGRATE . WE WILL HAVE TO RESTART OUR CLAUDE SESSION TO BE ABLE TO TEST.

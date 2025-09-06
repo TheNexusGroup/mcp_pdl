@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP PDL Function Flow & Implementation Network</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+        
+        #flowchart {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            background: #fafbfc;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover {
+            stroke-width: 3px;
+        }
+        
+        .link {
+            fill: none;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+        
+        .node-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+        
+        .phase-number {
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: white;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 12px;
+            background: #2c3e50;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 0 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn.active {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MCP PDL Function Flow</h1>
+        <p class="subtitle">Technical Implementation & Product Development Lifecycle Network Graph</p>
+        
+        <div class="controls">
+            <button class="btn" id="btnSimple">Simple Mode</button>
+            <button class="btn" id="btnRoadmap">Roadmap Mode</button>
+            <button class="btn" id="btnImplementation">Implementation View</button>
+        </div>
+        
+        <svg id="flowchart"></svg>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span>Core Functions</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>PDL Phases</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f39c12;"></div>
+                <span>Management Operations</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #27ae60;"></div>
+                <span>Data Storage</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9b59b6;"></div>
+                <span>Team Roles</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        const svg = d3.select("#flowchart");
+        const width = 1340;
+        const height = 800;
+        
+        svg.attr("width", width).attr("height", height);
+        
+        // Add arrow markers
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 15)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#34495e");
+
+        const tooltip = d3.select("#tooltip");
+
+        // Define different view modes
+        const viewModes = {
+            simple: {
+                nodes: [
+                    // Core Functions
+                    {id: "init", label: "initialize_project", x: 100, y: 100, type: "core", description: "Creates new project with PDL phase structure and team assignments"},
+                    {id: "phase", label: "get_phase", x: 100, y: 200, type: "core", description: "Retrieves current phase status and progress"},
+                    {id: "update", label: "update_phase", x: 300, y: 200, type: "core", description: "Updates phase progress, status, and completion percentage"},
+                    {id: "progress", label: "track_progress", x: 500, y: 200, type: "core", description: "Manages sprints, tasks, and progress tracking"},
+                    
+                    // PDL Phases
+                    {id: "p1", label: "1. Discovery", x: 150, y: 350, type: "phase", description: "User research, market analysis, problem validation"},
+                    {id: "p2", label: "2. Definition", x: 250, y: 350, type: "phase", description: "Requirements, technical feasibility, scope definition"},
+                    {id: "p3", label: "3. Design", x: 350, y: 350, type: "phase", description: "UX/UI design, prototypes, user testing"},
+                    {id: "p4", label: "4. Development", x: 450, y: 350, type: "phase", description: "Code implementation, integration, technical docs"},
+                    {id: "p5", label: "5. Testing", x: 550, y: 350, type: "phase", description: "QA testing, performance validation, bug fixes"},
+                    {id: "p6", label: "6. Launch", x: 650, y: 350, type: "phase", description: "Deployment, release preparation, monitoring"},
+                    {id: "p7", label: "7. Growth", x: 750, y: 350, type: "phase", description: "Metrics analysis, iteration, optimization"},
+                    
+                    // Team Roles
+                    {id: "pm", label: "Product Manager", x: 200, y: 500, type: "role", description: "Leads phases 1, 2, 7 - Vision and strategy"},
+                    {id: "pd", label: "Product Designer", x: 350, y: 500, type: "role", description: "Leads phase 3 - Design and user experience"},
+                    {id: "em", label: "Engineering Manager", x: 550, y: 500, type: "role", description: "Leads phases 4, 6 - Development and deployment"},
+                    {id: "qa", label: "QA Engineers", x: 550, y: 450, type: "role", description: "Leads phase 5 - Quality assurance and testing"}
+                ],
+                links: [
+                    {source: "init", target: "phase"},
+                    {source: "phase", target: "update"},
+                    {source: "update", target: "progress"},
+                    {source: "update", target: "p1"},
+                    {source: "p1", target: "p2"},
+                    {source: "p2", target: "p3"},
+                    {source: "p3", target: "p4"},
+                    {source: "p4", target: "p5"},
+                    {source: "p5", target: "p6"},
+                    {source: "p6", target: "p7"},
+                    {source: "p1", target: "pm"},
+                    {source: "p2", target: "pm"},
+                    {source: "p3", target: "pd"},
+                    {source: "p4", target: "em"},
+                    {source: "p5", target: "qa"},
+                    {source: "p6", target: "em"},
+                    {source: "p7", target: "pm"}
+                ]
+            },
+            
+            roadmap: {
+                nodes: [
+                    // Core Setup
+                    {id: "init", label: "initialize_project", x: 100, y: 100, type: "core", description: "Initialize project with team structure"},
+                    {id: "roadmap", label: "create_roadmap", x: 300, y: 100, type: "core", description: "Define vision, phases, and milestones"},
+                    {id: "sprint", label: "create_sprint", x: 500, y: 100, type: "core", description: "Create sprints within roadmap phases"},
+                    
+                    // Management Operations
+                    {id: "get_roadmap", label: "get_roadmap", x: 100, y: 250, type: "mgmt", description: "Retrieve complete roadmap status"},
+                    {id: "update_roadmap", label: "update_roadmap_phase", x: 300, y: 250, type: "mgmt", description: "Update roadmap phase metrics"},
+                    {id: "update_sprint", label: "update_sprint_pdl", x: 500, y: 250, type: "mgmt", description: "Update PDL phases within sprints"},
+                    {id: "advance", label: "advance_pdl_cycle", x: 700, y: 250, type: "mgmt", description: "Progress through PDL cycles"},
+                    
+                    // Data Structure
+                    {id: "project", label: "Project", x: 200, y: 400, type: "data", description: "Core project entity with roadmap"},
+                    {id: "roadmap_data", label: "Roadmap", x: 400, y: 400, type: "data", description: "Vision, phases, milestones"},
+                    {id: "phase_data", label: "RoadmapPhase", x: 600, y: 400, type: "data", description: "Phase with sprints and deliverables"},
+                    {id: "sprint_data", label: "Sprint", x: 800, y: 400, type: "data", description: "Sprint with PDL cycles"},
+                    {id: "cycle_data", label: "PDLCycle", x: 1000, y: 400, type: "data", description: "7-phase cycle with tasks"},
+                    
+                    // PDL Phases in Context
+                    {id: "cycle_phases", label: "7 PDL Phases", x: 1000, y: 550, type: "phase", description: "Sequential phases 1-7 within each cycle"}
+                ],
+                links: [
+                    {source: "init", target: "roadmap"},
+                    {source: "roadmap", target: "sprint"},
+                    {source: "roadmap", target: "get_roadmap"},
+                    {source: "get_roadmap", target: "update_roadmap"},
+                    {source: "sprint", target: "update_sprint"},
+                    {source: "update_sprint", target: "advance"},
+                    {source: "init", target: "project"},
+                    {source: "roadmap", target: "roadmap_data"},
+                    {source: "project", target: "roadmap_data"},
+                    {source: "roadmap_data", target: "phase_data"},
+                    {source: "phase_data", target: "sprint_data"},
+                    {source: "sprint_data", target: "cycle_data"},
+                    {source: "cycle_data", target: "cycle_phases"},
+                    {source: "update_roadmap", target: "phase_data"},
+                    {source: "update_sprint", target: "cycle_data"},
+                    {source: "advance", target: "cycle_phases"}
+                ]
+            },
+            
+            implementation: {
+                nodes: [
+                    // Server Layer
+                    {id: "server", label: "MCP Server", x: 200, y: 50, type: "core", description: "Main MCP server handling client requests"},
+                    {id: "handlers", label: "PDLFunctionHandlers", x: 400, y: 50, type: "core", description: "Function request handlers and routing"},
+                    {id: "roadmap_handlers", label: "RoadmapHandlers", x: 600, y: 50, type: "core", description: "Specialized roadmap operation handlers"},
+                    
+                    // Database Layer
+                    {id: "database", label: "Database", x: 400, y: 200, type: "data", description: "SQLite storage with JSON data handling"},
+                    {id: "storage", label: "FileStorage", x: 600, y: 200, type: "data", description: "File-based project data persistence"},
+                    
+                    // Function Categories
+                    {id: "init_funcs", label: "Initialization", x: 100, y: 350, type: "mgmt", description: "initialize_project, create_roadmap"},
+                    {id: "query_funcs", label: "Query Functions", x: 300, y: 350, type: "mgmt", description: "get_phase, get_roadmap"},
+                    {id: "update_funcs", label: "Update Functions", x: 500, y: 350, type: "mgmt", description: "update_phase, update_roadmap_phase"},
+                    {id: "progress_funcs", label: "Progress Functions", x: 700, y: 350, type: "mgmt", description: "track_progress, advance_pdl_cycle"},
+                    {id: "sprint_funcs", label: "Sprint Functions", x: 900, y: 350, type: "mgmt", description: "create_sprint, update_sprint_pdl"},
+                    
+                    // Data Models
+                    {id: "project_model", label: "Project Model", x: 200, y: 500, type: "data", description: "TypeScript interfaces and validation"},
+                    {id: "roadmap_model", label: "Roadmap Model", x: 400, y: 500, type: "data", description: "Roadmap, phases, milestones"},
+                    {id: "sprint_model", label: "Sprint Model", x: 600, y: 500, type: "data", description: "Sprint, PDL cycles, tasks"},
+                    {id: "types", label: "Type System", x: 800, y: 500, type: "data", description: "Enums, interfaces, validation"},
+                    
+                    // External Integration
+                    {id: "mcp_client", label: "MCP Client", x: 50, y: 50, type: "role", description: "External applications using MCP protocol"},
+                    {id: "agents", label: "AI Agents", x: 1000, y: 100, type: "role", description: "Specialized agents for different roles"},
+                    {id: "notifications", label: "Nabu Integration", x: 1000, y: 200, type: "role", description: "Service registry and Discord alerts"}
+                ],
+                links: [
+                    {source: "mcp_client", target: "server"},
+                    {source: "server", target: "handlers"},
+                    {source: "handlers", target: "roadmap_handlers"},
+                    {source: "handlers", target: "database"},
+                    {source: "database", target: "storage"},
+                    {source: "handlers", target: "init_funcs"},
+                    {source: "handlers", target: "query_funcs"},
+                    {source: "handlers", target: "update_funcs"},
+                    {source: "roadmap_handlers", target: "progress_funcs"},
+                    {source: "roadmap_handlers", target: "sprint_funcs"},
+                    {source: "database", target: "project_model"},
+                    {source: "project_model", target: "roadmap_model"},
+                    {source: "roadmap_model", target: "sprint_model"},
+                    {source: "sprint_model", target: "types"},
+                    {source: "server", target: "agents"},
+                    {source: "agents", target: "notifications"}
+                ]
+            }
+        };
+
+        const colors = {
+            core: "#3498db",
+            phase: "#e74c3c", 
+            mgmt: "#f39c12",
+            data: "#27ae60",
+            role: "#9b59b6"
+        };
+
+        let currentMode = 'simple';
+
+        function renderGraph(mode) {
+            svg.selectAll("*").remove();
+            
+            // Re-add arrow marker
+            svg.append("defs").append("marker")
+                .attr("id", "arrowhead")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 15)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#34495e");
+
+            const data = viewModes[mode];
+            
+            // Create links
+            const links = svg.selectAll(".link")
+                .data(data.links)
+                .enter()
+                .append("line")
+                .attr("class", "link")
+                .attr("x1", d => data.nodes.find(n => n.id === d.source).x)
+                .attr("y1", d => data.nodes.find(n => n.id === d.source).y)
+                .attr("x2", d => data.nodes.find(n => n.id === d.target).x)
+                .attr("y2", d => data.nodes.find(n => n.id === d.target).y)
+                .attr("stroke", "#34495e")
+                .attr("stroke-opacity", 0.6);
+
+            // Create nodes
+            const nodes = svg.selectAll(".node")
+                .data(data.nodes)
+                .enter()
+                .append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            nodes.append("circle")
+                .attr("r", d => d.type === "phase" && d.id.startsWith("p") ? 25 : 35)
+                .attr("fill", d => colors[d.type])
+                .attr("stroke", "#2c3e50")
+                .attr("stroke-width", 2);
+
+            // Add phase numbers for PDL phases
+            nodes.filter(d => d.type === "phase" && d.id.startsWith("p"))
+                .append("text")
+                .attr("class", "phase-number")
+                .text(d => d.id.substring(1))
+                .attr("dy", 5);
+
+            // Add labels
+            nodes.append("text")
+                .attr("class", "node-label")
+                .attr("y", d => d.type === "phase" && d.id.startsWith("p") ? 40 : 45)
+                .text(d => d.label)
+                .call(wrap, 80);
+
+            // Add tooltips
+            nodes.on("mouseover", function(event, d) {
+                tooltip
+                    .style("opacity", 1)
+                    .html(`<strong>${d.label}</strong><br/>${d.description}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px");
+            })
+            .on("mouseout", function() {
+                tooltip.style("opacity", 0);
+            });
+        }
+
+        // Text wrapping function
+        function wrap(text, width) {
+            text.each(function() {
+                var text = d3.select(this),
+                    words = text.text().split(/\s+/).reverse(),
+                    word,
+                    line = [],
+                    lineNumber = 0,
+                    lineHeight = 1.1,
+                    y = text.attr("y"),
+                    dy = parseFloat(text.attr("dy")) || 0,
+                    tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(" "));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(" "));
+                        line = [word];
+                        tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                    }
+                }
+            });
+        }
+
+        // Button event handlers
+        document.getElementById('btnSimple').addEventListener('click', function() {
+            currentMode = 'simple';
+            updateButtons();
+            renderGraph(currentMode);
+        });
+
+        document.getElementById('btnRoadmap').addEventListener('click', function() {
+            currentMode = 'roadmap';
+            updateButtons();
+            renderGraph(currentMode);
+        });
+
+        document.getElementById('btnImplementation').addEventListener('click', function() {
+            currentMode = 'implementation';
+            updateButtons();
+            renderGraph(currentMode);
+        });
+
+        function updateButtons() {
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn${currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}`).classList.add('active');
+        }
+
+        // Initial render
+        updateButtons();
+        renderGraph(currentMode);
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+import { execSync } from 'child_process';
 
 interface MigrationSource {
   dbPath: string;
@@ -19,12 +20,61 @@ export class CentralizedDatabase {
 
   constructor() {
     const claudeDataDir = path.join(os.homedir(), '.claude', 'data');
-    this.centralDbPath = path.join(claudeDataDir, 'pdl.sqlite');
+    this.centralDbPath = path.join(claudeDataDir, 'pdl.db');
     this.migrationLockFile = path.join(claudeDataDir, 'pdl-migration.lock');
     
     this.ensureDataDirectory(claudeDataDir);
     this.db = new sqlite3.Database(this.centralDbPath);
     this.initializeTables();
+  }
+
+  /**
+   * Gets the Claude project identifier (matches Claude's project directory naming)
+   */
+  private async getProjectIdentifier(projectPath: string): Promise<string> {
+    // Use Claude's project directory naming convention
+    // /home/persist/repos/lib/mcp_pdl -> -home-persist-repos-lib-mcp-pdl
+    // Note: underscores are also converted to hyphens
+    return projectPath.replace(/[/_]/g, '-');
+  }
+
+  /**
+   * Gets the current Claude session ID from the active project file
+   */
+  private async getClaudeSessionId(projectPath: string): Promise<string> {
+    try {
+      // Get the Claude project directory name (with underscores converted to hyphens)
+      const projectDirName = projectPath.replace(/[/_]/g, '-');
+      const claudeProjectDir = path.join(os.homedir(), '.claude', 'projects', projectDirName);
+      
+      // Find the most recently modified .jsonl file (current session)
+      const files = await fs.readdir(claudeProjectDir);
+      const jsonlFiles = files.filter(f => f.endsWith('.jsonl'));
+      
+      if (jsonlFiles.length > 0) {
+        // Get file stats and sort by modification time
+        const fileStats = await Promise.all(
+          jsonlFiles.map(async (file) => {
+            const filePath = path.join(claudeProjectDir, file);
+            const stats = await fs.stat(filePath);
+            return { file, mtime: stats.mtimeMs };
+          })
+        );
+        
+        // Sort by modification time (most recent first)
+        fileStats.sort((a, b) => b.mtime - a.mtime);
+        
+        // The filename (without .jsonl) is the session ID
+        const currentSession = fileStats[0].file.replace('.jsonl', '');
+        console.log(`Using Claude session: ${currentSession}`);
+        return currentSession;
+      }
+    } catch (error: any) {
+      console.error('Failed to get Claude session ID:', error?.message || error);
+    }
+
+    // Fallback to timestamp-based session ID
+    return `session_${Date.now()}`;
   }
 
   private async ensureDataDirectory(dataDir: string): Promise<void> {
@@ -38,10 +88,12 @@ export class CentralizedDatabase {
   private async initializeTables(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.serialize(() => {
-        // Enhanced projects table with source tracking
+        // Enhanced projects table with project and session tracking
         this.db.run(`
           CREATE TABLE IF NOT EXISTS projects (
-            project_name TEXT PRIMARY KEY,
+            project_name TEXT,
+            project_id TEXT NOT NULL,
+            session_id TEXT,
             description TEXT,
             created_at TEXT,
             updated_at TEXT,
@@ -49,8 +101,15 @@ export class CentralizedDatabase {
             roadmap TEXT,
             source_path TEXT,
             migration_timestamp TEXT,
-            data_hash TEXT
+            data_hash TEXT,
+            PRIMARY KEY (project_id, project_name)
           )
+        `);
+
+        // Create index for efficient project+session queries
+        this.db.run(`
+          CREATE INDEX IF NOT EXISTS idx_project_session 
+          ON projects (project_id, session_id)
         `);
 
         this.db.run(`
@@ -184,18 +243,34 @@ export class CentralizedDatabase {
     ];
 
     for (const searchPath of searchPaths) {
+      const localDbPath = path.join(searchPath, 'data', 'pdl.sqlite');
+      const localDataDir = path.join(searchPath, 'data');
+      
+      // Check if SQLite exists
+      let hasDatabase = false;
       try {
-        const localDbPath = path.join(searchPath, 'data', 'pdl.sqlite');
-        const localDataDir = path.join(searchPath, 'data');
-        
         await fs.access(localDbPath);
+        hasDatabase = true;
+      } catch {
+        // No SQLite database
+      }
+      
+      // Check if data directory with JSON files exists
+      let hasJsonFiles = false;
+      try {
+        const files = await fs.readdir(localDataDir);
+        hasJsonFiles = files.some(f => f.endsWith('.json') && !f.includes('test'));
+      } catch {
+        // No data directory or files
+      }
+      
+      // Add source if either database or JSON files exist
+      if (hasDatabase || hasJsonFiles) {
         sources.push({
           dbPath: localDbPath,
           dataDir: localDataDir,
           projectPath: searchPath
         });
-      } catch {
-        // Database doesn't exist at this location, continue
       }
     }
 
@@ -206,13 +281,33 @@ export class CentralizedDatabase {
    * Migrates data from a local database source
    */
   private async migrateFromSource(source: MigrationSource): Promise<void> {
-    console.log(`Starting migration from: ${source.dbPath}`);
+    // Check if SQLite database exists
+    let dbExists = false;
+    try {
+      await fs.access(source.dbPath);
+      dbExists = true;
+      console.log(`Starting migration from SQLite: ${source.dbPath}`);
+    } catch {
+      console.log(`SQLite database not found, checking for JSON fallback: ${source.dbPath}`);
+    }
+    
+    // If no SQLite, try to recover from JSON files
+    if (!dbExists) {
+      const recovered = await this.recoverFromJSON(source);
+      if (!recovered) {
+        console.log(`No data to migrate from ${source.projectPath}`);
+        return;
+      }
+      // Now the SQLite should exist from recovery
+    }
     
     const localDb = new sqlite3.Database(source.dbPath, sqlite3.OPEN_READONLY);
     
     try {
       // Get all data from local database
       const localData = await this.extractLocalData(localDb);
+      
+      console.log(`Extracted ${localData.projects.length} projects from local database`);
       
       if (localData.projects.length === 0) {
         console.log(`No projects found in ${source.dbPath}, skipping migration`);
@@ -234,8 +329,10 @@ export class CentralizedDatabase {
       }
 
       // Perform the migration
+      console.log('Inserting data into centralized database...');
       await this.insertMigratedData(localData, source);
       
+      console.log('Validating migration...');
       // Validate the migration
       const isValid = await this.validateMigration(localData, source);
       
@@ -243,10 +340,20 @@ export class CentralizedDatabase {
         // Record successful migration
         await this.recordMigration(source, dataHash, 'completed', 'validation_passed');
         
-        // Cleanup: Remove local database file (but keep data directory)
-        await this.cleanupLocalDatabase(source);
+        // DO NOT DELETE SOURCE DATABASE - ONLY MARK AS MIGRATED
+        // Create migration marker instead of deleting
+        const markerPath = path.join(source.dataDir, '.pdl-migrated');
+        const projectId = await this.getProjectIdentifier(source.projectPath);
+        const sessionId = await this.getClaudeSessionId(source.projectPath);
+        await fs.writeFile(markerPath, JSON.stringify({
+          migratedAt: new Date().toISOString(),
+          projectId: projectId,
+          sessionId: sessionId,
+          projectCount: localData.projects.length
+        }));
+        console.log('Migration validated - source database preserved as backup');
         
-        console.log(`Successfully migrated and cleaned up: ${source.dbPath}`);
+        console.log(`Successfully migrated from: ${source.dbPath}`);
       } else {
         await this.recordMigration(source, dataHash, 'failed', 'validation_failed');
         console.error(`Migration validation failed for: ${source.dbPath}`);
@@ -275,25 +382,36 @@ export class CentralizedDatabase {
       };
 
       localDb.serialize(() => {
+        let completed = 0;
+        const checkComplete = () => {
+          completed++;
+          if (completed === 4) {
+            resolve(data);
+          }
+        };
+
         localDb.all("SELECT * FROM projects", (err: any, rows: any) => {
           if (err) return reject(err);
           data.projects = rows || [];
+          checkComplete();
         });
 
         localDb.all("SELECT * FROM phases", (err: any, rows: any) => {
           if (err) return reject(err);
           data.phases = rows || [];
+          checkComplete();
         });
 
         localDb.all("SELECT * FROM sprints", (err: any, rows: any) => {
           if (err) return reject(err);
           data.sprints = rows || [];
+          checkComplete();
         });
 
         localDb.all("SELECT * FROM activity_log", (err: any, rows: any) => {
           if (err) return reject(err);
           data.activityLog = rows || [];
-          resolve(data);
+          checkComplete();
         });
       });
     });
@@ -302,6 +420,147 @@ export class CentralizedDatabase {
   private calculateDataHash(data: any): string {
     const dataString = JSON.stringify(data, Object.keys(data).sort());
     return crypto.createHash('sha256').update(dataString).digest('hex');
+  }
+
+  /**
+   * Recovers database from JSON files if SQLite is missing
+   */
+  private async recoverFromJSON(source: MigrationSource): Promise<boolean> {
+    try {
+      const jsonFiles = await fs.readdir(source.dataDir);
+      const projectFiles = jsonFiles.filter(f => f.endsWith('.json') && !f.includes('test'));
+      
+      if (projectFiles.length === 0) {
+        return false;
+      }
+      
+      console.log(`Found ${projectFiles.length} JSON files, recovering database...`);
+      
+      // Create a new SQLite database
+      const db = new sqlite3.Database(source.dbPath);
+      
+      await new Promise<void>((resolve, reject) => {
+        db.serialize(() => {
+          // Create tables
+          db.run(`CREATE TABLE IF NOT EXISTS projects (
+            project_name TEXT PRIMARY KEY,
+            description TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            team_composition TEXT,
+            roadmap TEXT
+          )`);
+          
+          db.run(`CREATE TABLE IF NOT EXISTS phases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT,
+            phase_number INTEGER,
+            phase_name TEXT,
+            status TEXT,
+            start_date TEXT,
+            end_date TEXT,
+            primary_driver TEXT,
+            completion_percentage INTEGER DEFAULT 0,
+            key_activities TEXT,
+            deliverables TEXT,
+            blockers TEXT,
+            notes TEXT
+          )`);
+          
+          db.run(`CREATE TABLE IF NOT EXISTS sprints (
+            sprint_id TEXT PRIMARY KEY,
+            sprint_name TEXT,
+            project_name TEXT,
+            phase_number INTEGER,
+            start_date TEXT,
+            end_date TEXT,
+            status TEXT,
+            tasks TEXT,
+            velocity INTEGER,
+            burn_down TEXT,
+            retrospective TEXT
+          )`);
+          
+          db.run(`CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT,
+            timestamp TEXT,
+            actor TEXT,
+            action TEXT,
+            details TEXT,
+            phase_number INTEGER,
+            sprint_id TEXT
+          )`, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      });
+      
+      // Insert data from JSON files
+      for (const file of projectFiles) {
+        try {
+          const jsonPath = path.join(source.dataDir, file);
+          const jsonData = await fs.readFile(jsonPath, 'utf8');
+          const projectData = JSON.parse(jsonData);
+          
+          // Insert project
+          await new Promise<void>((resolve, reject) => {
+            db.run(
+              `INSERT OR REPLACE INTO projects (project_name, description, created_at, updated_at, team_composition, roadmap)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [
+                projectData.project_name || path.basename(file, '.json'),
+                projectData.description || '',
+                projectData.created_at || new Date().toISOString(),
+                projectData.updated_at || new Date().toISOString(),
+                JSON.stringify(projectData.team_composition || {}),
+                JSON.stringify(projectData.roadmap || null)
+              ],
+              (err) => {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+          
+          // Insert phases if they exist
+          if (projectData.phases) {
+            for (const phase of Object.values(projectData.phases) as any[]) {
+              await new Promise<void>((resolve, reject) => {
+                db.run(
+                  `INSERT OR REPLACE INTO phases 
+                   (project_name, phase_number, phase_name, status, completion_percentage, notes)
+                   VALUES (?, ?, ?, ?, ?, ?)`,
+                  [
+                    projectData.project_name || path.basename(file, '.json'),
+                    phase.phase_number,
+                    phase.phase_name,
+                    phase.status,
+                    phase.completion_percentage || 0,
+                    phase.notes || ''
+                  ],
+                  (err) => {
+                    if (err) console.error(`Failed to insert phase: ${err}`);
+                    resolve(); // Continue even if phase fails
+                  }
+                );
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to process ${file}:`, error);
+        }
+      }
+      
+      db.close();
+      console.log(`Recovered database from ${projectFiles.length} JSON files`);
+      return true;
+      
+    } catch (error) {
+      console.error('Failed to recover from JSON:', error);
+      return false;
+    }
   }
 
   private async findExistingMigration(sourcePath: string, dataHash: string): Promise<boolean> {
@@ -319,6 +578,11 @@ export class CentralizedDatabase {
 
   private async insertMigratedData(data: any, source: MigrationSource): Promise<void> {
     const migrationTimestamp = new Date().toISOString();
+    // Get these before entering the Promise to avoid async issues
+    const projectId = await this.getProjectIdentifier(source.projectPath);
+    const sessionId = await this.getClaudeSessionId(source.projectPath);
+    
+    console.log(`Migrating to project: ${projectId}, session: ${sessionId}`);
 
     return new Promise((resolve, reject) => {
       this.db.serialize(() => {
@@ -327,18 +591,21 @@ export class CentralizedDatabase {
         // Insert projects with migration metadata
         const projectStmt = this.db.prepare(`
           INSERT OR REPLACE INTO projects 
-          (project_name, description, created_at, updated_at, team_composition, roadmap, source_path, migration_timestamp, data_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (project_name, project_id, session_id, description, created_at, updated_at, 
+           team_composition, roadmap, source_path, migration_timestamp, data_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         for (const project of data.projects) {
           projectStmt.run(
-            project.project_name,
-            project.description,
-            project.created_at,
-            project.updated_at,
-            project.team_composition,
-            project.roadmap,
+            project.project_name,  // Keep original agent project name
+            projectId,  // Claude project identifier (e.g., "-home-persist-repos-lib-mcp-pdl")
+            sessionId,  // Claude session ID for filtering
+            project.description || '',
+            project.created_at || new Date().toISOString(),
+            project.updated_at || new Date().toISOString(),
+            project.team_composition || '',
+            project.roadmap || '',
             source.projectPath,
             migrationTimestamp,
             this.calculateDataHash(project)
@@ -565,6 +832,44 @@ export class CentralizedDatabase {
         }
       );
       stmt.finalize();
+    });
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    // First return cached projects
+    const cachedProjects = Array.from(this.projectsCache.values());
+    
+    // Also load all from database
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        "SELECT * FROM projects",
+        async (err, rows: any[]) => {
+          if (err) return reject(err);
+          
+          const projects: Project[] = [];
+          for (const row of rows || []) {
+            // Parse the stored JSON data
+            const project: Project = {
+              project_name: row.project_name,
+              description: row.description,
+              created_at: row.created_at,
+              updated_at: row.updated_at,
+              team_composition: row.team_composition ? JSON.parse(row.team_composition) : {},
+              roadmap: row.roadmap ? JSON.parse(row.roadmap) : null,
+              activity_log: []
+            };
+            
+            // Add to cache if not already there
+            if (!this.projectsCache.has(row.project_name)) {
+              this.projectsCache.set(row.project_name, project);
+            }
+            
+            projects.push(project);
+          }
+          
+          resolve(projects);
+        }
+      );
     });
   }
 
@@ -831,17 +1136,6 @@ export class CentralizedDatabase {
     });
   }
 
-  async getAllProjects(): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        "SELECT project_name FROM projects ORDER BY updated_at DESC",
-        (err: any, rows: any[]) => {
-          if (err) return reject(err);
-          resolve((rows || []).map((row: any) => row.project_name));
-        }
-      );
-    });
-  }
   
   close(): void {
     this.db.close();

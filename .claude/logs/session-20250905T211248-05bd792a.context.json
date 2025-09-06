@@ -1,0 +1,13 @@
+{
+  "session_id": "20250905T211248-05bd792a",
+  "project_name": "mcp_pdl",
+  "started_at": "2025-09-05T21:13:43.408Z",
+  "last_activity": "2025-09-05T21:44:42.024Z",
+  "working_directory": "/home/persist/repos/lib/mcp_pdl",
+  "total_commands": 6,
+  "git_context": {
+    "branch": "main",
+    "commit": "460d8cc4a3331e4f6bff926c3d9a74d5a13c00da",
+    "repository": "git@github.com:TheNexusGroup/mcp_pdl.git"
+  }
+}

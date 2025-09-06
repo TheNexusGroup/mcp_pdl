@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - dialog "Console Error" [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - navigation [ref=e7]:
+              - button "previous" [disabled] [ref=e8]:
+                - img "previous" [ref=e9]
+              - button "next" [ref=e11] [cursor=pointer]:
+                - img "next" [ref=e12] [cursor=pointer]
+              - generic [ref=e14]:
+                - generic [ref=e15]: "1"
+                - text: of
+                - generic [ref=e16]: "3"
+                - text: errors
+              - generic [ref=e17]:
+                - generic "There is a newer version (15.5.2) available, upgrade recommended!" [ref=e19]: Next.js (15.1.3) out of date
+                - link "(learn more)" [ref=e20] [cursor=pointer]:
+                  - /url: https://nextjs.org/docs/messages/version-staleness
+            - button "Close" [ref=e21] [cursor=pointer]:
+              - img [ref=e23] [cursor=pointer]
+          - generic [ref=e26]:
+            - heading "Console Error" [level=1] [ref=e27]
+            - generic [ref=e28]:
+              - button "Copy error stack" [ref=e29] [cursor=pointer]:
+                - img [ref=e30] [cursor=pointer]
+              - link "Learn more about enabling Node.js inspector for server code with Chrome DevTools" [ref=e33] [cursor=pointer]:
+                - /url: https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code
+                - img [ref=e34] [cursor=pointer]
+          - paragraph [ref=e37]: The result of getServerSnapshot should be cached to avoid an infinite loop
+        - generic [ref=e38]:
+          - heading "Source" [level=2] [ref=e39]
+          - generic [ref=e40]:
+            - link "lib/store/index.ts (71:40) @ useStore" [ref=e42] [cursor=pointer]:
+              - generic [ref=e43] [cursor=pointer]: lib/store/index.ts (71:40) @ useStore
+              - img [ref=e44] [cursor=pointer]
+            - generic [ref=e49]: "69 | 70 | // Actions with stable selectors > 71 | export const useProjectActions = () => useStore(projectActionsSelector) | ^ 72 | export const useWebSocketActions = () => useStore(webSocketActionsSelector) 73 | 74 | const exportActionsSelector = (state: RootState) => ({"
+          - generic [ref=e50]:
+            - heading "useProjectActions" [level=3] [ref=e51]
+            - link "components/enhanced/RealTimeDashboard.tsx (27:62)" [ref=e52] [cursor=pointer]:
+              - generic [ref=e53] [cursor=pointer]: components/enhanced/RealTimeDashboard.tsx (27:62)
+              - img [ref=e54] [cursor=pointer]
+          - button "Show ignored frames" [ref=e58] [cursor=pointer]
+    - status [ref=e59]:
+      - generic [ref=e60]:
+        - img [ref=e62]
+        - generic [ref=e64]:
+          - text: Static route
+          - button "Hide static indicator" [ref=e65] [cursor=pointer]:
+            - img [ref=e66] [cursor=pointer]
+```

@@ -1,0 +1,13 @@
+{
+  "session_id": "20250905T184549-1584c723",
+  "project_name": "integration-test-project-1757097949775",
+  "started_at": "2025-09-05T18:45:49.782Z",
+  "last_activity": "2025-09-05T18:45:51.228Z",
+  "working_directory": "/home/persist/repos/lib/mcp_pdl",
+  "total_commands": 9,
+  "git_context": {
+    "branch": "main",
+    "commit": "40f4110ff2099cd49185c9a356aed4db67d47ccb",
+    "repository": "git@github.com:TheNexusGroup/mcp_pdl.git"
+  }
+}

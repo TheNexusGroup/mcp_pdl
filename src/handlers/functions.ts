@@ -40,6 +40,30 @@ export class PDLFunctionHandlers {
     this.db = database;
   }
 
+  async listProjects(includeDetails: boolean = false): Promise<any> {
+    const projects = await this.db.getAllProjects();
+    
+    if (!includeDetails) {
+      return {
+        success: true,
+        projects: projects.map(p => p.project_name)
+      };
+    }
+    
+    return {
+      success: true,
+      projects: projects.map(p => ({
+        project_name: p.project_name,
+        description: p.description,
+        created_at: p.created_at,
+        current_phase: p.roadmap?.roadmap_phases?.find(ph => ph.status === 'in_progress')?.phase_name || 
+                      'Not started',
+        team_size: Object.values(p.team_composition || {}).flat().filter(Boolean).length,
+        has_roadmap: !!p.roadmap
+      }))
+    };
+  }
+
   async getPhase(projectName: string, includeSprints: boolean = false): Promise<LegacyPhaseResponse> {
     const project = await this.db.getProject(projectName);
     if (!project) {

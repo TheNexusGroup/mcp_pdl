@@ -28,11 +28,8 @@ export class DatabaseFactory {
       const shouldUseCentralized = await DatabaseFactory.shouldUseCentralizedDatabase();
       
       if (shouldUseCentralized) {
-        console.log('Using centralized database at ~/.claude/data/pdl.sqlite');
+        console.log('Using centralized database at ~/.claude/data/pdl.db');
         const centralizedDb = new CentralizedDatabase();
-        
-        // Perform automatic migration
-        await centralizedDb.performAutoMigration();
         
         DatabaseFactory.instance = new DatabaseAdapter(centralizedDb);
         return DatabaseFactory.instance;
@@ -60,7 +57,7 @@ export class DatabaseFactory {
   private static async shouldUseCentralizedDatabase(): Promise<boolean> {
     try {
       const claudeDataDir = path.join(os.homedir(), '.claude', 'data');
-      const centralDbPath = path.join(claudeDataDir, 'pdl.sqlite');
+      const centralDbPath = path.join(claudeDataDir, 'pdl.db');
       
       // Strategy 1: If centralized database already exists and has data, use it
       try {
@@ -99,13 +96,13 @@ export class DatabaseFactory {
         return true;
       }
 
-      // Strategy 5: Gradual rollout - use centralized for new projects
+      // Strategy 5: Auto-migrate existing local databases to centralized
       const localDbPath = path.join(process.cwd(), 'data', 'pdl.sqlite');
       try {
         await fs.access(localDbPath);
-        // Local database exists, continue using it for backward compatibility
-        console.log('Local database exists, using legacy mode for backward compatibility');
-        return false;
+        // Local database exists, migrate to centralized
+        console.log('Local database exists, using centralized mode to auto-migrate');
+        return true;
       } catch {
         // No local database, safe to use centralized for new projects
         console.log('No local database found, using centralized mode for new project');
@@ -187,6 +184,25 @@ export class DatabaseFactory {
   static async getDatabaseType(): Promise<'local' | 'centralized'> {
     const shouldUseCentralized = await DatabaseFactory.shouldUseCentralizedDatabase();
     return shouldUseCentralized ? 'centralized' : 'local';
+  }
+
+  /**
+   * Performs migration to centralized database (called once at server startup)
+   */
+  static async performStartupMigration(): Promise<void> {
+    const shouldUseCentralized = await DatabaseFactory.shouldUseCentralizedDatabase();
+    
+    if (shouldUseCentralized) {
+      console.log('Performing startup migration to centralized database...');
+      const centralizedDb = new CentralizedDatabase();
+      
+      // Perform automatic migration only during startup
+      await centralizedDb.performAutoMigration();
+      
+      console.log('Startup migration completed');
+    } else {
+      console.log('Using local database, no migration needed');
+    }
   }
 }
 

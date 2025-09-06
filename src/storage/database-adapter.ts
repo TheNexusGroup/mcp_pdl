@@ -49,18 +49,8 @@ export class DatabaseAdapter {
     }
   }
 
-  async getAllProjects(): Promise<string[]> {
-    if (this.wrappedDb instanceof CentralizedDatabase) {
-      return this.wrappedDb.getAllProjects();
-    } else {
-      // For original Database class, we need to implement this
-      try {
-        // Use the private projectsCache if available
-        return Array.from((this.wrappedDb as any).projectsCache.keys());
-      } catch (error) {
-        return [];
-      }
-    }
+  async getAllProjects(): Promise<any[]> {
+    return this.wrappedDb.getAllProjects();
   }
 
   async getProjectPhases(projectName: string): Promise<any[]> {

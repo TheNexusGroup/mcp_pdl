@@ -121,6 +121,11 @@ export class Database {
     });
   }
 
+  async getAllProjects(): Promise<Project[]> {
+    // Return all cached projects
+    return Array.from(this.projectsCache.values());
+  }
+
   async getProject(projectName: string): Promise<Project | null> {
     // Check cache first
     if (this.projectsCache.has(projectName)) {

@@ -7,7 +7,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { getDatabase, DatabaseAdapter } from './storage/database-factory.js';
+import { getDatabase, DatabaseAdapter, DatabaseFactory } from './storage/database-factory.js';
 import { PDLFunctionHandlers } from './handlers/functions.js';
 import { RoadmapFunctionHandlers } from './handlers/roadmap-functions.js';
 
@@ -48,6 +48,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['project_name'],
+        },
+      },
+      {
+        name: 'list_projects',
+        description: 'Lists all projects in the PDL system',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            include_details: {
+              type: 'boolean',
+              description: 'Include project details (phase, status, etc)',
+              default: false,
+            },
+          },
         },
       },
       {
@@ -504,6 +518,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case 'list_projects': {
+        const result = await handlers.listProjects(
+          args.include_details as boolean
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
       case 'update_phase': {
         const result = await handlers.updatePhase(
           args.project_name as string,
@@ -673,7 +701,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main(): Promise<void> {
   try {
-    // Initialize database first
+    // Perform migration first (only once at startup)
+    console.error('Performing startup migration...');
+    await DatabaseFactory.performStartupMigration();
+    
+    // Initialize database
     console.error('Initializing database...');
     db = await getDatabase();
     handlers = new PDLFunctionHandlers(db.getUnderlyingDatabase() as any);
