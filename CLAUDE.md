@@ -1,45 +1,67 @@
 # MCP PDL Server
 
-Product Development Lifecycle server with 7-phase project management, roadmap planning, and role-based collaboration.
+Product Development Lifecycle server with 7-phase sprint management, roadmap planning, and role-based collaboration.
+
+## CRITICAL ARCHITECTURE CHANGE (v2.0)
+
+**Project = Repository (Claude Project ID)**
+- Each repository IS the project (uses Claude's project ID from ~/.claude/projects/)
+- No more "project names" - the repo's Claude project ID is the identifier
+- All MCP servers (PDL, Nabu, Telos) use the same Claude project ID
+
+**Structure Hierarchy:**
+```
+Repository (Claude Project ID)
+├── Roadmap (overall vision & phases)
+│   ├── Phase 1 (e.g., "MVP Development")
+│   │   ├── Sprint 1 (Complete 7-PDL cycle)
+│   │   │   ├── PDL Phase 1: Discovery & Ideation
+│   │   │   ├── PDL Phase 2: Definition & Scoping
+│   │   │   ├── ...
+│   │   │   └── PDL Phase 7: Post-Launch Iteration
+│   │   └── Sprint 2 (Complete 7-PDL cycle)
+│   └── Phase 2 (e.g., "Growth Features")
+└── Sub-Projects (what agents call "projects")
+```
 
 ## Quick Start Workflows
 
-### Simple Project (Basic Phase Tracking)
+### Repository Initialization
 ```
-1. initialize_project → Create project with team
-2. update_phase → Track phase progress (0-100%)
-3. track_progress → Manage sprints and tasks
+1. Auto-detect Claude project ID from path
+2. Initialize repository PDL tracking
+3. Create roadmap with phases
+4. Create sprints (each sprint = full 7-PDL cycle)
 ```
 
-### Advanced Project (Full Roadmap with Sprints)
+### Sprint Management (Each Sprint is a 7-Phase PDL Cycle)
 ```
-1. initialize_project → Create project foundation
-2. create_roadmap → Define vision, phases, milestones
-3. create_sprint → Create sprints within roadmap phases
-4. update_sprint_pdl → Update PDL phases within sprints
-5. advance_pdl_cycle → Progress through 7-phase cycles
+1. create_sprint → Creates new sprint with 7 PDL phases
+2. update_sprint_pdl → Update current PDL phase (1-7) within sprint
+3. advance_pdl_phase → Move to next PDL phase in sprint
+4. complete_sprint → Finish sprint and start next
 ```
 
 ## Core Functions (use `mcp__pdl__` prefix)
 
-### Project Setup
+### Repository Setup (Auto-detected from Claude Project)
 
-#### `initialize_project`
-Creates new project with PDL phase structure.
-- `project_name` (required): Unique identifier
-- `description` (optional): Project description
+#### `initialize_repository`
+Initializes PDL tracking for the current repository.
+- Auto-detects Claude project ID from path
+- `description` (optional): Repository description
 - `team_composition` (optional): Assign team members to roles
-- `start_phase` (optional, 1-7): Initial phase
+- No project_name needed - uses Claude project ID
 
 #### `create_roadmap`
-Build comprehensive product roadmap.
-- `project_name` (required)
+Build comprehensive product roadmap for the repository.
 - `vision` (required): Overall product vision
 - `phases` (required): Array of roadmap phases with:
   - `name`, `description`, `objective` (required)
   - `duration_weeks` (required): Phase duration
   - `deliverables`, `success_metrics` (optional)
 - `milestones` (optional): Key milestone markers
+- No project_name needed - uses current repository
 
 ### Phase Management
 
@@ -199,4 +221,3 @@ When agents are working on projects:
 3. Update regularly: Use appropriate update functions
 4. Track detailed work: Use sprints and PDL cycles for granular tracking
 5. Report accurately: Always use real completion percentages
-- IMPORTANT - DO NOT FUCKING MIGRATE MANUALLY. THE PDL SYSTEM MUST BE ABLE TO AUTO-MIGRATE . WE WILL HAVE TO RESTART OUR CLAUDE SESSION TO BE ABLE TO TEST.

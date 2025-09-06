@@ -36,12 +36,20 @@ export async function GET() {
 async function checkMCPServerHealth(): Promise<string> {
   try {
     const serverUrl = process.env.MCP_SERVER_URL || 'http://localhost:8080'
-    const response = await fetch(`${serverUrl}/health`, { 
-      method: 'GET',
-      timeout: 3000 
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
     
-    return response.ok ? 'healthy' : 'unhealthy'
+    try {
+      const response = await fetch(`${serverUrl}/health`, { 
+        method: 'GET',
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+      return response.ok ? 'healthy' : 'unhealthy'
+    } catch {
+      clearTimeout(timeoutId)
+      return 'unavailable'
+    }
   } catch {
     return 'unavailable'
   }
