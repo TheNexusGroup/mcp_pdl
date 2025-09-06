@@ -1,8 +1,12 @@
 import { PDLDatabase } from '../storage/database.js';
 
 /**
- * Repository-centric handlers for PDL operations
- * All operations are scoped to the current repository (Claude project)
+ * Repository-centric handlers with clean terminology
+ * - Projects (what agents work on)
+ * - Phases (iterations within projects)  
+ * - Steps (7 PDL steps within phases)
+ * - Tasks (work items within steps)
+ * - Documentation (docs created during work)
  */
 export class RepositoryHandlers {
   private db: PDLDatabase;
@@ -28,63 +32,62 @@ export class RepositoryHandlers {
   }
 
   async listRepositories(): Promise<any> {
-    const repos = await this.db.listRepositories();
-    return {
-      success: true,
-      repositories: repos,
-      current: this.db.getCurrentRepositoryId()
-    };
+    return this.db.listRepositories();
   }
 
-  // ==================== ROADMAP OPERATIONS ====================
-
-  async createRoadmap(args: {
-    vision: string;
-    phases: Array<{
-      name: string;
-      description: string;
-      objective: string;
-      deliverables?: string[];
-      success_metrics?: string[];
-    }>;
-    milestones?: any[];
+  async getMetadata(args: {
+    params?: { [key: string]: any };
   }): Promise<any> {
-    return this.db.createRoadmap(args.vision, args.phases);
+    return this.db.getMetadata(args.params);
   }
 
-  async updateRoadmapPhase(args: {
-    phase_id: string;
-    updates: {
-      status?: string;
-      completion_percentage?: number;
-      deliverables?: string[];
-      success_metrics?: string[];
-    };
+  // ==================== PROJECT OPERATIONS ====================
+
+  async createProject(args: {
+    project_name: string;
+    description: string;
+    objective: string;
   }): Promise<any> {
-    // This would need to be implemented in the database class
-    return {
-      success: true,
-      message: 'Roadmap phase update not yet implemented'
-    };
+    return this.db.createProject(
+      args.project_name,
+      args.description,
+      args.objective
+    );
   }
 
-  // ==================== SPRINT OPERATIONS ====================
+  async listProjects(args: {
+    repository_id?: string;
+    search?: string;
+  }): Promise<any> {
+    return this.db.listProjects(args.repository_id, args.search);
+  }
 
-  async createSprint(args: {
-    roadmap_phase_id: string;
-    sprint_name: string;
+  // ==================== PHASE OPERATIONS ====================
+
+  async createPhase(args: {
+    project_id: string;
+    phase_name: string;
     duration_days?: number;
   }): Promise<any> {
-    return this.db.createSprint(
-      args.roadmap_phase_id,
-      args.sprint_name,
+    return this.db.createPhase(
+      args.project_id,
+      args.phase_name,
       args.duration_days || 14
     );
   }
 
-  async updateSprintPDL(args: {
-    sprint_id: string;
-    pdl_phase_number: number;
+  async listPhases(args: {
+    project_id?: string;
+    search?: string;
+  }): Promise<any> {
+    return this.db.listPhases(args.project_id, args.search);
+  }
+
+  // ==================== STEP OPERATIONS ====================
+
+  async updateStep(args: {
+    phase_id: string;
+    step_number: number;
     updates: {
       status?: string;
       completion_percentage?: number;
@@ -93,37 +96,32 @@ export class RepositoryHandlers {
       notes?: string;
     };
   }): Promise<any> {
-    return this.db.updateSprintPDL(
-      args.sprint_id,
-      args.pdl_phase_number,
+    return this.db.updateStep(
+      args.phase_id,
+      args.step_number,
       args.updates
     );
   }
 
-  async advancePDLPhase(args: {
-    sprint_id: string;
-    completion_notes?: string;
+  async listSteps(args: {
+    phase_id?: string;
+    search?: string;
   }): Promise<any> {
-    // Get current PDL phase and advance to next
-    // This would need implementation in database class
-    return {
-      success: true,
-      message: 'PDL phase advancement not yet implemented'
-    };
+    return this.db.listSteps(args.phase_id, args.search);
   }
 
   // ==================== TASK OPERATIONS ====================
 
   async createTask(args: {
-    sprint_id: string;
-    pdl_phase_number: number;
+    phase_id: string;
+    step_number: number;
     task_description: string;
     assignee?: string;
     story_points?: number;
   }): Promise<any> {
     return this.db.createTask(
-      args.sprint_id,
-      args.pdl_phase_number,
+      args.phase_id,
+      args.step_number,
       args.task_description,
       args.assignee,
       args.story_points
@@ -137,133 +135,34 @@ export class RepositoryHandlers {
     return this.db.updateTaskStatus(args.task_id, args.status);
   }
 
-  async bulkUpdateTasks(args: {
-    updates: Array<{
-      task_id: string;
-      status: 'todo' | 'in_progress' | 'done' | 'blocked';
-    }>;
+  async listTasks(args: {
+    phase_id?: string;
+    step_number?: number;
+    search?: string;
   }): Promise<any> {
-    const results = [];
-    for (const update of args.updates) {
-      const result = await this.db.updateTaskStatus(update.task_id, update.status);
-      results.push(result);
-    }
-    return {
-      success: true,
-      updated: results.length,
-      results
-    };
+    return this.db.listTasks(args.phase_id, args.step_number, args.search);
   }
 
-  // ==================== SUB-PROJECT OPERATIONS ====================
+  // ==================== DOCUMENTATION OPERATIONS ====================
 
-  async createSubproject(args: {
+  async createDocumentation(args: {
     name: string;
-    description: string;
-    related_sprint_id?: string;
-    created_by?: string;
+    path: string;
+    summary_brief?: string;
+    creating_agent?: string;
+    project_id?: string;
+    phase_id?: string;
+    task_id?: string;
   }): Promise<any> {
-    return this.db.createSubproject(
-      args.name,
-      args.description,
-      args.related_sprint_id,
-      args.created_by
-    );
+    return this.db.createDocumentation(args);
   }
 
-  // ==================== MANIPULATION OPERATIONS ====================
-
-  async insertRoadmapPhase(args: {
-    position: number;
-    phase: {
-      name: string;
-      description: string;
-      objective: string;
-      deliverables?: string[];
-      success_metrics?: string[];
-    };
+  async listDocumentation(args: {
+    project_id?: string;
+    phase_id?: string;
+    search?: string;
   }): Promise<any> {
-    return this.db.insertRoadmapPhase(args.position, args.phase);
-  }
-
-  async deleteRoadmapPhase(args: {
-    phase_id: string;
-    reassign_sprints_to?: string;
-  }): Promise<any> {
-    return this.db.deleteRoadmapPhase(args.phase_id, args.reassign_sprints_to);
-  }
-
-  async reorderRoadmapPhases(args: {
-    phase_order: string[];
-  }): Promise<any> {
-    return this.db.reorderRoadmapPhases(args.phase_order);
-  }
-
-  async insertSprint(args: {
-    roadmap_phase_id: string;
-    position: number;
-    sprint: {
-      sprint_name: string;
-      duration_days?: number;
-    };
-  }): Promise<any> {
-    return this.db.insertSprint(args.roadmap_phase_id, args.position, args.sprint);
-  }
-
-  async deleteSprint(args: {
-    sprint_id: string;
-    reassign_tasks_to?: string;
-  }): Promise<any> {
-    return this.db.deleteSprint(args.sprint_id, args.reassign_tasks_to);
-  }
-
-  async moveSprint(args: {
-    sprint_id: string;
-    target_phase_id: string;
-    position: number;
-  }): Promise<any> {
-    return this.db.moveSprint(args.sprint_id, args.target_phase_id, args.position);
-  }
-
-  async insertTaskAtPosition(args: {
-    sprint_id: string;
-    pdl_phase_number: number;
-    position: number;
-    task: {
-      task_description: string;
-      assignee?: string;
-      story_points?: number;
-    };
-  }): Promise<any> {
-    return this.db.insertTask(
-      args.sprint_id,
-      args.pdl_phase_number,
-      args.position,
-      args.task
-    );
-  }
-
-  async deleteTaskById(args: {
-    task_id: string;
-  }): Promise<any> {
-    return this.db.deleteTask(args.task_id);
-  }
-
-  async moveTask(args: {
-    task_id: string;
-    target_sprint_id: string;
-    target_pdl_phase: number;
-  }): Promise<any> {
-    return this.db.moveTask(args.task_id, args.target_sprint_id, args.target_pdl_phase);
-  }
-
-  async bulkUpdateTaskStatuses(args: {
-    updates: Array<{
-      task_id: string;
-      status: 'todo' | 'in_progress' | 'done' | 'blocked';
-    }>;
-  }): Promise<any> {
-    return this.db.bulkUpdateTaskStatuses(args.updates);
+    return this.db.listDocumentation(args.project_id, args.phase_id, args.search);
   }
 
   // ==================== LEGACY COMPATIBILITY ====================
@@ -274,25 +173,72 @@ export class RepositoryHandlers {
     description?: string;
     team_composition?: any;
   }): Promise<any> {
-    // Ignore project_name, use repository
-    return this.initializeRepository({
+    // Initialize repository first if needed
+    await this.initializeRepository({
       description: args.description,
       team_composition: args.team_composition
     });
+    
+    // Then create a project with the given name
+    return this.createProject({
+      project_name: args.project_name,
+      description: args.description || '',
+      objective: args.description || ''
+    });
   }
 
-  async getPhase(args: {
-    project_name: string;
-    include_sprints?: boolean;
+  async createRoadmap(args: {
+    vision: string;
+    phases: Array<{
+      name: string;
+      description: string;
+      objective: string;
+      deliverables?: string[];
+      success_metrics?: string[];
+    }>;
   }): Promise<any> {
-    // Ignore project_name, use current repository
-    const status = await this.db.getCurrentStatus();
+    // Create projects from the old "roadmap phases"
+    const results = [];
+    for (const phase of args.phases) {
+      const result = await this.createProject({
+        project_name: phase.name,
+        description: phase.description,
+        objective: phase.objective
+      });
+      results.push(result);
+    }
+    
     return {
-      project_name: this.db.getCurrentRepositoryId(),
-      current_phase: status.active_sprint?.current_pdl_phase || 1,
-      roadmap_phases: status.roadmap_phases,
-      active_sprint: status.active_sprint
+      success: true,
+      projects_created: results.length,
+      message: `Created ${results.length} projects`
     };
+  }
+
+  async createSprint(args: {
+    roadmap_phase_id: string;
+    sprint_name: string;
+    duration_days?: number;
+  }): Promise<any> {
+    // Map old sprint creation to phase creation
+    return this.createPhase({
+      project_id: args.roadmap_phase_id,
+      phase_name: args.sprint_name,
+      duration_days: args.duration_days
+    });
+  }
+
+  async updateSprintPDL(args: {
+    sprint_id: string;
+    pdl_phase_number: number;
+    updates: any;
+  }): Promise<any> {
+    // Map old PDL phase update to step update
+    return this.updateStep({
+      phase_id: args.sprint_id,
+      step_number: args.pdl_phase_number,
+      updates: args.updates
+    });
   }
 
   async updatePhase(args: {
@@ -301,33 +247,34 @@ export class RepositoryHandlers {
     status?: string;
     completion_percentage?: number;
     notes?: string;
-    transition_to_next?: boolean;
   }): Promise<any> {
-    // This now updates the current PDL phase in the active sprint
+    // Get current status to find active phase
     const currentStatus = await this.db.getCurrentStatus();
-    if (!currentStatus.active_sprint) {
-      throw new Error('No active sprint found');
+    if (!currentStatus.active_phase) {
+      throw new Error('No active phase found');
     }
 
-    return this.db.updateSprintPDL(
-      currentStatus.active_sprint.sprint_id,
-      args.phase_number || currentStatus.active_sprint.current_pdl_phase,
-      {
+    return this.updateStep({
+      phase_id: currentStatus.active_phase.phase_id,
+      step_number: args.phase_number || currentStatus.active_phase.current_step,
+      updates: {
         status: args.status,
         completion_percentage: args.completion_percentage,
         notes: args.notes
       }
-    );
+    });
   }
 
-  async listProjects(args: {
-    include_details?: boolean;
+  async getPhase(args: {
+    project_name: string;
+    include_sprints?: boolean;
   }): Promise<any> {
-    // Now returns sub-projects within the repository
+    const status = await this.db.getCurrentStatus();
     return {
-      success: true,
-      repository: this.db.getCurrentRepositoryId(),
-      message: 'Use listRepositories for cross-repo view'
+      project_name: args.project_name,
+      current_phase: status.active_phase?.current_step || 1,
+      projects: status.projects,
+      active_phase: status.active_phase
     };
   }
 }

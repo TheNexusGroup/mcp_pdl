@@ -222,264 +222,101 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
 
-      // ==================== SUB-PROJECT OPERATIONS ====================
+
+      // ==================== LIST OPERATIONS ====================
       {
-        name: 'create_subproject',
-        description: 'Create sub-project (what agents call "projects")',
+        name: 'list_projects',
+        description: 'List projects in current repository with optional search',
         inputSchema: {
           type: 'object',
           properties: {
-            name: {
-              type: 'string',
-              description: 'Sub-project name',
-            },
-            description: {
-              type: 'string',
-              description: 'Sub-project description',
-            },
-            related_sprint_id: {
-              type: 'string',
-              description: 'Related sprint ID',
-            },
-            created_by: {
-              type: 'string',
-              description: 'Agent/role that created it',
-            },
+            repository_id: { type: 'string', description: 'Optional repository ID' },
+            search: { type: 'string', description: 'Search term for name/description/objective' },
           },
-          required: ['name', 'description'],
+        },
+      },
+      {
+        name: 'list_phases',
+        description: 'List phases with optional project filter and search',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Optional project ID filter' },
+            search: { type: 'string', description: 'Search term for phase name' },
+          },
+        },
+      },
+      {
+        name: 'list_steps',
+        description: 'List steps with optional phase filter and search',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            phase_id: { type: 'string', description: 'Optional phase ID filter' },
+            search: { type: 'string', description: 'Search term for step name/notes' },
+          },
+        },
+      },
+      {
+        name: 'list_tasks',
+        description: 'List tasks with optional filters and search',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            phase_id: { type: 'string', description: 'Optional phase ID filter' },
+            step_number: { type: 'integer', description: 'Optional step number filter' },
+            search: { type: 'string', description: 'Search term for task description/assignee' },
+          },
         },
       },
 
-      // ==================== MANIPULATION TOOLS ====================
+      // ==================== DOCUMENTATION OPERATIONS ====================
       {
-        name: 'insert_roadmap_phase',
-        description: 'Insert new roadmap phase at specific position',
+        name: 'create_documentation',
+        description: 'Create documentation entry linked to project/phase/task',
         inputSchema: {
           type: 'object',
           properties: {
-            position: {
-              type: 'integer',
-              description: 'Position to insert at (1-based)',
-              minimum: 1,
-            },
-            phase: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                description: { type: 'string' },
-                objective: { type: 'string' },
-                deliverables: {
-                  type: 'array',
-                  items: { type: 'string' },
-                },
-                success_metrics: {
-                  type: 'array',
-                  items: { type: 'string' },
-                },
-              },
-              required: ['name', 'description', 'objective'],
-            },
+            name: { type: 'string', description: 'Document name' },
+            path: { type: 'string', description: 'Document path' },
+            summary_brief: { type: 'string', description: 'Brief summary' },
+            creating_agent: { type: 'string', description: 'Agent that created it' },
+            project_id: { type: 'string', description: 'Related project ID' },
+            phase_id: { type: 'string', description: 'Related phase ID' },
+            task_id: { type: 'string', description: 'Related task ID' },
           },
-          required: ['position', 'phase'],
+          required: ['name', 'path'],
         },
       },
       {
-        name: 'delete_roadmap_phase',
-        description: 'Delete roadmap phase and optionally reassign sprints',
+        name: 'list_documentation',
+        description: 'List documentation with optional filters and search',
         inputSchema: {
           type: 'object',
           properties: {
-            phase_id: {
-              type: 'string',
-              description: 'Phase ID to delete',
-            },
-            reassign_sprints_to: {
-              type: 'string',
-              description: 'Phase ID to move sprints to (optional)',
-            },
+            project_id: { type: 'string', description: 'Optional project ID filter' },
+            phase_id: { type: 'string', description: 'Optional phase ID filter' },
+            search: { type: 'string', description: 'Search term for name/summary/path' },
           },
-          required: ['phase_id'],
         },
       },
+
+      // ==================== METADATA OPERATIONS ====================
       {
-        name: 'reorder_roadmap_phases',
-        description: 'Reorder roadmap phases',
+        name: 'get_metadata',
+        description: 'Get repository metadata with optional parameter filtering',
         inputSchema: {
           type: 'object',
           properties: {
-            phase_order: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Array of phase IDs in desired order',
+            params: { 
+              type: 'object', 
+              description: 'Optional parameters to filter metadata',
+              additionalProperties: true,
             },
           },
-          required: ['phase_order'],
         },
       },
-      {
-        name: 'insert_sprint',
-        description: 'Insert new sprint at specific position within phase',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            roadmap_phase_id: {
-              type: 'string',
-              description: 'Roadmap phase ID',
-            },
-            position: {
-              type: 'integer',
-              description: 'Position within phase (1-based)',
-              minimum: 1,
-            },
-            sprint: {
-              type: 'object',
-              properties: {
-                sprint_name: { type: 'string' },
-                duration_days: { type: 'integer', default: 14 },
-              },
-              required: ['sprint_name'],
-            },
-          },
-          required: ['roadmap_phase_id', 'position', 'sprint'],
-        },
-      },
-      {
-        name: 'delete_sprint',
-        description: 'Delete sprint and optionally reassign tasks',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            sprint_id: {
-              type: 'string',
-              description: 'Sprint ID to delete',
-            },
-            reassign_tasks_to: {
-              type: 'string',
-              description: 'Sprint ID to move tasks to (optional)',
-            },
-          },
-          required: ['sprint_id'],
-        },
-      },
-      {
-        name: 'move_sprint',
-        description: 'Move sprint to different phase and position',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            sprint_id: {
-              type: 'string',
-              description: 'Sprint ID to move',
-            },
-            target_phase_id: {
-              type: 'string',
-              description: 'Target roadmap phase ID',
-            },
-            position: {
-              type: 'integer',
-              description: 'New position in target phase',
-              minimum: 1,
-            },
-          },
-          required: ['sprint_id', 'target_phase_id', 'position'],
-        },
-      },
-      {
-        name: 'insert_task_at_position',
-        description: 'Insert task at specific position in PDL phase',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            sprint_id: {
-              type: 'string',
-              description: 'Sprint ID',
-            },
-            pdl_phase_number: {
-              type: 'integer',
-              description: 'PDL phase (1-7)',
-              minimum: 1,
-              maximum: 7,
-            },
-            position: {
-              type: 'integer',
-              description: 'Position within phase tasks',
-              minimum: 1,
-            },
-            task: {
-              type: 'object',
-              properties: {
-                task_description: { type: 'string' },
-                assignee: { type: 'string' },
-                story_points: { type: 'integer' },
-              },
-              required: ['task_description'],
-            },
-          },
-          required: ['sprint_id', 'pdl_phase_number', 'position', 'task'],
-        },
-      },
-      {
-        name: 'delete_task_by_id',
-        description: 'Delete task by ID',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            task_id: {
-              type: 'string',
-              description: 'Task ID to delete',
-            },
-          },
-          required: ['task_id'],
-        },
-      },
-      {
-        name: 'move_task',
-        description: 'Move task to different sprint and PDL phase',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            task_id: {
-              type: 'string',
-              description: 'Task ID to move',
-            },
-            target_sprint_id: {
-              type: 'string',
-              description: 'Target sprint ID',
-            },
-            target_pdl_phase: {
-              type: 'integer',
-              description: 'Target PDL phase (1-7)',
-              minimum: 1,
-              maximum: 7,
-            },
-          },
-          required: ['task_id', 'target_sprint_id', 'target_pdl_phase'],
-        },
-      },
-      {
-        name: 'bulk_update_task_statuses',
-        description: 'Update multiple task statuses at once',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            updates: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  task_id: { type: 'string' },
-                  status: {
-                    type: 'string',
-                    enum: ['todo', 'in_progress', 'done', 'blocked'],
-                  },
-                },
-                required: ['task_id', 'status'],
-              },
-            },
-          },
-          required: ['updates'],
-        },
-      },
+
 
       // ==================== LEGACY COMPATIBILITY ====================
       {
@@ -588,41 +425,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handlers.updateTask(args as any);
         break;
 
-      // Sub-project operations
-      case 'create_subproject':
-        result = await handlers.createSubproject(args as any);
+      // List operations
+      case 'list_projects':
+        result = await handlers.listProjects(args as any);
+        break;
+      case 'list_phases':
+        result = await handlers.listPhases(args as any);
+        break;
+      case 'list_steps':
+        result = await handlers.listSteps(args as any);
+        break;
+      case 'list_tasks':
+        result = await handlers.listTasks(args as any);
         break;
 
-      // Manipulation operations
-      case 'insert_roadmap_phase':
-        result = await handlers.insertRoadmapPhase(args as any);
+      // Documentation operations
+      case 'create_documentation':
+        result = await handlers.createDocumentation(args as any);
         break;
-      case 'delete_roadmap_phase':
-        result = await handlers.deleteRoadmapPhase(args as any);
+      case 'list_documentation':
+        result = await handlers.listDocumentation(args as any);
         break;
-      case 'reorder_roadmap_phases':
-        result = await handlers.reorderRoadmapPhases(args as any);
-        break;
-      case 'insert_sprint':
-        result = await handlers.insertSprint(args as any);
-        break;
-      case 'delete_sprint':
-        result = await handlers.deleteSprint(args as any);
-        break;
-      case 'move_sprint':
-        result = await handlers.moveSprint(args as any);
-        break;
-      case 'insert_task_at_position':
-        result = await handlers.insertTaskAtPosition(args as any);
-        break;
-      case 'delete_task_by_id':
-        result = await handlers.deleteTaskById(args as any);
-        break;
-      case 'move_task':
-        result = await handlers.moveTask(args as any);
-        break;
-      case 'bulk_update_task_statuses':
-        result = await handlers.bulkUpdateTaskStatuses(args as any);
+
+      // Metadata operations
+      case 'get_metadata':
+        result = await handlers.getMetadata(args as any);
         break;
 
       // Legacy compatibility
@@ -634,9 +461,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'update_phase':
         result = await handlers.updatePhase(args as any);
-        break;
-      case 'list_projects':
-        result = await handlers.listProjects(args as any);
         break;
 
       default:
@@ -667,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('MCP PDL Server v2.0.0 - Repository-centric design with full manipulation capabilities');
+  console.error('MCP PDL Server v3.0.0 - Clean simplified design');
 }
 
 main().catch((error: unknown) => {
