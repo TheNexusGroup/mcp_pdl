@@ -42,6 +42,25 @@ Repository (Claude Project ID)
 4. complete_sprint → Finish sprint and start next
 ```
 
+### Dynamic Manipulation (Critical for Agents)
+```
+# Roadmap Phase Operations
+- insert_roadmap_phase → Insert new phase at specific position
+- delete_roadmap_phase → Remove phase, optionally reassign sprints
+- reorder_roadmap_phases → Reorganize phase order
+
+# Sprint Operations  
+- insert_sprint → Insert sprint at specific position in phase
+- delete_sprint → Remove sprint, optionally reassign tasks
+- move_sprint → Move sprint between phases
+
+# Task Operations
+- insert_task_at_position → Insert task at specific position
+- delete_task_by_id → Remove task
+- move_task → Move task between sprints/PDL phases
+- bulk_update_task_statuses → Update multiple task statuses
+```
+
 ## Core Functions (use `mcp__pdl__` prefix)
 
 ### Repository Setup (Auto-detected from Claude Project)
@@ -221,3 +240,7 @@ When agents are working on projects:
 3. Update regularly: Use appropriate update functions
 4. Track detailed work: Use sprints and PDL cycles for granular tracking
 5. Report accurately: Always use real completion percentages
+
+## DOCUMENTATION
+
+- **Static Dashboard**: Alpine.js HTML dashboard at `file://~/.claude/data/pdl.html`

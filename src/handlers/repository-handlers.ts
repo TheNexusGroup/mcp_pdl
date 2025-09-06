@@ -171,6 +171,101 @@ export class RepositoryHandlers {
     );
   }
 
+  // ==================== MANIPULATION OPERATIONS ====================
+
+  async insertRoadmapPhase(args: {
+    position: number;
+    phase: {
+      name: string;
+      description: string;
+      objective: string;
+      deliverables?: string[];
+      success_metrics?: string[];
+    };
+  }): Promise<any> {
+    return this.db.insertRoadmapPhase(args.position, args.phase);
+  }
+
+  async deleteRoadmapPhase(args: {
+    phase_id: string;
+    reassign_sprints_to?: string;
+  }): Promise<any> {
+    return this.db.deleteRoadmapPhase(args.phase_id, args.reassign_sprints_to);
+  }
+
+  async reorderRoadmapPhases(args: {
+    phase_order: string[];
+  }): Promise<any> {
+    return this.db.reorderRoadmapPhases(args.phase_order);
+  }
+
+  async insertSprint(args: {
+    roadmap_phase_id: string;
+    position: number;
+    sprint: {
+      sprint_name: string;
+      duration_days?: number;
+    };
+  }): Promise<any> {
+    return this.db.insertSprint(args.roadmap_phase_id, args.position, args.sprint);
+  }
+
+  async deleteSprint(args: {
+    sprint_id: string;
+    reassign_tasks_to?: string;
+  }): Promise<any> {
+    return this.db.deleteSprint(args.sprint_id, args.reassign_tasks_to);
+  }
+
+  async moveSprint(args: {
+    sprint_id: string;
+    target_phase_id: string;
+    position: number;
+  }): Promise<any> {
+    return this.db.moveSprint(args.sprint_id, args.target_phase_id, args.position);
+  }
+
+  async insertTaskAtPosition(args: {
+    sprint_id: string;
+    pdl_phase_number: number;
+    position: number;
+    task: {
+      task_description: string;
+      assignee?: string;
+      story_points?: number;
+    };
+  }): Promise<any> {
+    return this.db.insertTask(
+      args.sprint_id,
+      args.pdl_phase_number,
+      args.position,
+      args.task
+    );
+  }
+
+  async deleteTaskById(args: {
+    task_id: string;
+  }): Promise<any> {
+    return this.db.deleteTask(args.task_id);
+  }
+
+  async moveTask(args: {
+    task_id: string;
+    target_sprint_id: string;
+    target_pdl_phase: number;
+  }): Promise<any> {
+    return this.db.moveTask(args.task_id, args.target_sprint_id, args.target_pdl_phase);
+  }
+
+  async bulkUpdateTaskStatuses(args: {
+    updates: Array<{
+      task_id: string;
+      status: 'todo' | 'in_progress' | 'done' | 'blocked';
+    }>;
+  }): Promise<any> {
+    return this.db.bulkUpdateTaskStatuses(args.updates);
+  }
+
   // ==================== LEGACY COMPATIBILITY ====================
   // These maintain compatibility with agents expecting old function names
 

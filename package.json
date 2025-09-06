@@ -11,7 +11,9 @@
     "cli": "tsx src/cli/mcp-cli.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dashboard:install": "node scripts/setup-dashboard.js --copy",
+    "dashboard:open": "node scripts/setup-dashboard.js --open"
   },
   "bin": {
     "mcp-pdl": "dist/cli/mcp-cli.js"

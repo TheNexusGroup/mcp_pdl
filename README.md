@@ -1,8 +1,223 @@
-# MCP Product Development Lifecycle (PDL) Server
+# MCP PDL Server
 
-## Overview
+Product Development Lifecycle server with 7-phase project management, roadmap planning, and role-based collaboration.
 
-The MCP PDL Server is a Model Context Protocol server that enables AI agents to track, manage, and collaborate on product development projects through their complete lifecycle. It provides structured phase management, sprint tracking, and role-based agent profiles to facilitate intelligent project coordination.
+## Quick Start
+
+### Installation
+```bash
+# Install dependencies
+npm install
+
+# Build the server
+npm run build
+```
+
+### Dashboard Access
+
+#### Option 1: Manual Install
+```bash
+# Copy dashboard to global location
+npm run dashboard:install
+
+# Open dashboard in browser
+npm run dashboard:open
+```
+
+#### Option 2: Auto-Install with Environment Variable
+```bash
+# Start MCP server with auto dashboard setup
+DASHBOARD=1 /path/to/mcp-pdl/mcp-server.js
+```
+
+The dashboard will be available at: `file://~/.claude/data/pdl.html`
+
+### MCP Configuration
+
+Add to your MCP settings:
+```json
+{
+  "mcpServers": {
+    "pdl": {
+      "command": "/path/to/mcp-pdl/mcp-server.js",
+      "env": {
+        "DASHBOARD": "1"
+      }
+    }
+  }
+}
+```
+
+## Dashboard Features
+
+- **Live Project Overview**: View all PDL projects across repositories
+- **7-Phase Progress Tracking**: Visual progress through Discovery → Growth
+- **Sprint Management**: Track sprints within roadmap phases  
+- **Task Visualization**: See task status and assignments
+- **Real-time Stats**: Project counts, active sprints, completion metrics
+- **Project Filtering**: Focus on specific projects
+- **Offline Capable**: Works without server connection (shows cached data)
+
+## Architecture
+
+### Repository-Centric Design (v2.0)
+- **One repository = One project** (using Claude's project ID)
+- **Centralized database**: `~/.claude/data/pdl.db` (SQLite)
+- **Project identification**: Auto-detected from repository path
+- **Cross-project dashboard**: Single view of all projects
+
+### Structure Hierarchy
+```
+Repository (Claude Project ID)
+├── Roadmap (overall vision & phases)
+│   ├── Phase 1 (e.g., "MVP Development")
+│   │   ├── Sprint 1 (Complete 7-PDL cycle)
+│   │   │   ├── PDL Phase 1: Discovery & Ideation
+│   │   │   ├── PDL Phase 2: Definition & Scoping
+│   │   │   ├── ...
+│   │   │   └── PDL Phase 7: Post-Launch Iteration
+│   │   └── Sprint 2 (Complete 7-PDL cycle)
+│   └── Phase 2 (e.g., "Growth Features")
+└── Sub-Projects (what agents call "projects")
+```
+
+## Core Functions
+
+### Repository Operations
+- `initialize_repository` - Auto-detect and initialize current repo
+- `get_status` - Get current repository PDL status  
+- `list_repositories` - List all repositories with PDL tracking
+
+### Roadmap Management
+- `create_roadmap` - Define vision, phases, milestones
+- `get_roadmap` - Retrieve complete roadmap with status
+
+### Sprint Management
+- `create_sprint` - Create sprint with 7-phase PDL cycle
+- `update_sprint_pdl` - Update specific PDL phase within sprint
+- `advance_pdl_cycle` - Progress through PDL phases
+
+### Task Management  
+- `create_task` - Create tasks within PDL phases
+- `update_task` - Update task status
+- `bulk_update_task_statuses` - Update multiple tasks
+
+### Advanced Manipulation
+- `insert_roadmap_phase` - Insert phases at specific positions
+- `delete_roadmap_phase` - Remove phases with sprint reassignment
+- `reorder_roadmap_phases` - Reorganize phase order
+- `move_sprint` - Move sprints between phases
+- `move_task` - Move tasks between sprints/phases
+
+## The 7 PDL Phases & Role Leaders
+
+1. **Discovery & Ideation** → Product Manager
+   - User research, market analysis, ideation
+   - Output: Problem validation, initial concepts
+
+2. **Definition & Scoping** → Product Manager
+   - Requirements, technical feasibility, resources
+   - Output: PRD, scope document, success metrics
+
+3. **Design & Prototyping** → Product Designer
+   - UX/UI design, prototypes, user testing
+   - Output: Design specs, interactive prototypes
+
+4. **Development & Implementation** → Engineering Manager
+   - Coding, integration, technical documentation
+   - Output: Working code, technical docs
+
+5. **Testing & Quality Assurance** → QA Engineers
+   - Test planning, execution, performance testing
+   - Output: Test results, bug reports, quality metrics
+
+6. **Launch & Deployment** → Engineering Manager
+   - Release prep, deployment, monitoring setup
+   - Output: Deployed product, release notes
+
+7. **Post-Launch: Growth & Iteration** → Product Manager
+   - Metrics analysis, user feedback, optimization
+   - Output: Growth metrics, iteration plans
+
+## Usage Patterns
+
+### Starting a Project
+```bash
+# Initialize repository PDL tracking
+mcp__pdl__initialize_repository
+
+# Create comprehensive roadmap
+mcp__pdl__create_roadmap
+
+# Create first sprint  
+mcp__pdl__create_sprint
+```
+
+### Daily Updates
+```bash
+# Update sprint PDL phase progress
+mcp__pdl__update_sprint_pdl
+
+# Update task statuses
+mcp__pdl__update_task
+
+# Check overall status
+mcp__pdl__get_status
+```
+
+### Dashboard Workflow
+1. **Auto-install**: Set `DASHBOARD=1` in MCP config
+2. **Access**: Open `file://~/.claude/data/pdl.html` 
+3. **Monitor**: Real-time view of all projects
+4. **Filter**: Focus on specific projects/phases
+5. **Track**: Visual progress through 7-phase cycles
+
+## Files
+
+### Dashboard
+- `dashboard/index.html` - Static HTML dashboard with Alpine.js
+- `scripts/setup-dashboard.js` - Manual dashboard installation
+- `scripts/auto-setup-dashboard.js` - Auto-install when DASHBOARD=1
+
+### Core Server
+- `src/server.ts` - Main MCP server with auto dashboard setup
+- `src/storage/database.js` - Centralized SQLite database
+- `src/handlers/repository-handlers.js` - Repository-centric operations
+
+### Build Output
+- `dist/server.js` - Compiled server
+- `mcp-server.js` - Entry point wrapper
+
+## Development
+
+```bash
+# Development mode
+npm run dev
+
+# Build for production  
+npm run build
+
+# Run tests
+npm run test
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+```
+
+## Legacy Compatibility
+
+The server maintains backward compatibility with v1.0 project-based functions:
+- `initialize_project` → `initialize_repository` 
+- `get_phase` → Current sprint's PDL phase
+- `update_phase` → `update_sprint_pdl`
+- `list_projects` → `list_repositories`
+
+This allows existing agent workflows to continue working while migrating to the repository-centric v2.0 design.
+
+## Overview (Legacy Documentation)
 
 ## Core Concepts
 

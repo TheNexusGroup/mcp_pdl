@@ -703,6 +703,481 @@ export class PDLDatabase {
     });
   }
 
+  // ==================== MANIPULATION OPERATIONS ====================
+
+  async insertRoadmapPhase(
+    position: number,
+    phase: {
+      name: string;
+      description: string;
+      objective: string;
+      deliverables?: string[];
+      success_metrics?: string[];
+    }
+  ): Promise<any> {
+    if (!this.currentRepositoryId) {
+      throw new Error('Repository not initialized');
+    }
+
+    const phaseId = `phase_${Date.now()}`;
+
+    return new Promise((resolve, reject) => {
+      // First, shift existing phases
+      this.db.run(
+        "UPDATE roadmap_phases SET phase_order = phase_order + 1 WHERE repository_id = ? AND phase_order >= ?",
+        [this.currentRepositoryId, position],
+        (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          // Insert new phase
+          this.db.run(
+            `INSERT INTO roadmap_phases (
+              phase_id, repository_id, phase_name, description, 
+              objective, deliverables, success_metrics, phase_order
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              phaseId,
+              this.currentRepositoryId,
+              phase.name,
+              phase.description,
+              phase.objective,
+              JSON.stringify(phase.deliverables || []),
+              JSON.stringify(phase.success_metrics || []),
+              position
+            ],
+            (err) => {
+              if (err) reject(err);
+              else {
+                this.logActivity('roadmap_phase_inserted', 'roadmap_phase', phaseId, { position, phase });
+                resolve({
+                  success: true,
+                  phase_id: phaseId,
+                  position: position,
+                  message: `Phase "${phase.name}" inserted at position ${position}`
+                });
+              }
+            }
+          );
+        }
+      );
+    });
+  }
+
+  async deleteRoadmapPhase(phaseId: string, reassignSprintsTo?: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // Get phase info first
+      this.db.get(
+        "SELECT * FROM roadmap_phases WHERE phase_id = ? AND repository_id = ?",
+        [phaseId, this.currentRepositoryId],
+        (err, phase: any) => {
+          if (err || !phase) {
+            reject(err || new Error('Phase not found'));
+            return;
+          }
+
+          // Handle sprint reassignment if specified
+          if (reassignSprintsTo) {
+            this.db.run(
+              "UPDATE sprints SET roadmap_phase_id = ? WHERE roadmap_phase_id = ?",
+              [reassignSprintsTo, phaseId],
+              (err) => {
+                if (err) console.error('Failed to reassign sprints:', err);
+              }
+            );
+          }
+
+          // Delete the phase
+          this.db.run(
+            "DELETE FROM roadmap_phases WHERE phase_id = ?",
+            [phaseId],
+            (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              // Shift remaining phases down
+              this.db.run(
+                "UPDATE roadmap_phases SET phase_order = phase_order - 1 WHERE repository_id = ? AND phase_order > ?",
+                [this.currentRepositoryId, phase.phase_order],
+                (err) => {
+                  if (err) console.error('Failed to reorder phases:', err);
+                  
+                  this.logActivity('roadmap_phase_deleted', 'roadmap_phase', phaseId, { phase_name: phase.phase_name });
+                  resolve({
+                    success: true,
+                    deleted_phase: phase.phase_name,
+                    message: `Phase "${phase.phase_name}" deleted successfully`
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+  }
+
+  async reorderRoadmapPhases(phaseOrder: string[]): Promise<any> {
+    if (!this.currentRepositoryId) {
+      throw new Error('Repository not initialized');
+    }
+
+    return new Promise((resolve, reject) => {
+      // Update each phase with its new order
+      let completed = 0;
+      const errors: any[] = [];
+
+      for (let i = 0; i < phaseOrder.length; i++) {
+        const phaseId = phaseOrder[i];
+        this.db.run(
+          "UPDATE roadmap_phases SET phase_order = ? WHERE phase_id = ? AND repository_id = ?",
+          [i + 1, phaseId, this.currentRepositoryId],
+          (err) => {
+            if (err) errors.push(err);
+            completed++;
+
+            if (completed === phaseOrder.length) {
+              if (errors.length > 0) {
+                reject(errors[0]);
+              } else {
+                this.logActivity('roadmap_phases_reordered', 'roadmap', this.currentRepositoryId!, { new_order: phaseOrder });
+                resolve({
+                  success: true,
+                  reordered_count: phaseOrder.length,
+                  message: 'Roadmap phases reordered successfully'
+                });
+              }
+            }
+          }
+        );
+      }
+    });
+  }
+
+  async insertSprint(
+    roadmapPhaseId: string,
+    position: number,
+    sprint: {
+      sprint_name: string;
+      duration_days?: number;
+    }
+  ): Promise<any> {
+    if (!this.currentRepositoryId) {
+      throw new Error('Repository not initialized');
+    }
+
+    const sprintId = `sprint_${Date.now()}`;
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + (sprint.duration_days || 14));
+
+    return new Promise((resolve, reject) => {
+      // Shift existing sprints in this phase
+      this.db.run(
+        "UPDATE sprints SET sprint_number = sprint_number + 1 WHERE roadmap_phase_id = ? AND sprint_number >= ?",
+        [roadmapPhaseId, position],
+        (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          // Insert new sprint
+          this.db.run(
+            `INSERT INTO sprints (
+              sprint_id, repository_id, roadmap_phase_id, sprint_name,
+              sprint_number, start_date, end_date, status, current_pdl_phase
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              sprintId,
+              this.currentRepositoryId,
+              roadmapPhaseId,
+              sprint.sprint_name,
+              position,
+              startDate.toISOString(),
+              endDate.toISOString(),
+              'planning',
+              1
+            ],
+            async (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              // Create 7 PDL phases for this sprint
+              await this.initializeSprintPDLPhases(sprintId);
+
+              this.logActivity('sprint_inserted', 'sprint', sprintId, {
+                roadmap_phase_id: roadmapPhaseId,
+                position: position,
+                sprint_name: sprint.sprint_name
+              });
+
+              resolve({
+                success: true,
+                sprint_id: sprintId,
+                position: position,
+                message: `Sprint "${sprint.sprint_name}" inserted at position ${position}`
+              });
+            }
+          );
+        }
+      );
+    });
+  }
+
+  async deleteSprint(sprintId: string, reassignTasksTo?: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      // Get sprint info first
+      this.db.get(
+        "SELECT * FROM sprints WHERE sprint_id = ? AND repository_id = ?",
+        [sprintId, this.currentRepositoryId],
+        (err, sprint: any) => {
+          if (err || !sprint) {
+            reject(err || new Error('Sprint not found'));
+            return;
+          }
+
+          // Handle task reassignment if specified
+          if (reassignTasksTo) {
+            this.db.run(
+              "UPDATE tasks SET sprint_id = ? WHERE sprint_id = ?",
+              [reassignTasksTo, sprintId],
+              (err) => {
+                if (err) console.error('Failed to reassign tasks:', err);
+              }
+            );
+          }
+
+          // Delete sprint and related data
+          this.db.serialize(() => {
+            this.db.run("DELETE FROM tasks WHERE sprint_id = ?", [sprintId]);
+            this.db.run("DELETE FROM sprint_pdl_phases WHERE sprint_id = ?", [sprintId]);
+            this.db.run("DELETE FROM sprints WHERE sprint_id = ?", [sprintId], (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              // Reorder remaining sprints
+              this.db.run(
+                "UPDATE sprints SET sprint_number = sprint_number - 1 WHERE roadmap_phase_id = ? AND sprint_number > ?",
+                [sprint.roadmap_phase_id, sprint.sprint_number],
+                (err) => {
+                  if (err) console.error('Failed to reorder sprints:', err);
+                  
+                  this.logActivity('sprint_deleted', 'sprint', sprintId, { sprint_name: sprint.sprint_name });
+                  resolve({
+                    success: true,
+                    deleted_sprint: sprint.sprint_name,
+                    message: `Sprint "${sprint.sprint_name}" deleted successfully`
+                  });
+                }
+              );
+            });
+          });
+        }
+      );
+    });
+  }
+
+  async moveSprint(sprintId: string, targetPhaseId: string, position: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        "SELECT * FROM sprints WHERE sprint_id = ?",
+        [sprintId],
+        (err, sprint: any) => {
+          if (err || !sprint) {
+            reject(err || new Error('Sprint not found'));
+            return;
+          }
+
+          // Shift sprints in target phase
+          this.db.run(
+            "UPDATE sprints SET sprint_number = sprint_number + 1 WHERE roadmap_phase_id = ? AND sprint_number >= ?",
+            [targetPhaseId, position],
+            (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              // Update sprint
+              this.db.run(
+                "UPDATE sprints SET roadmap_phase_id = ?, sprint_number = ? WHERE sprint_id = ?",
+                [targetPhaseId, position, sprintId],
+                (err) => {
+                  if (err) {
+                    reject(err);
+                    return;
+                  }
+
+                  // Clean up old phase numbering
+                  this.db.run(
+                    "UPDATE sprints SET sprint_number = sprint_number - 1 WHERE roadmap_phase_id = ? AND sprint_number > ?",
+                    [sprint.roadmap_phase_id, sprint.sprint_number],
+                    (err) => {
+                      if (err) console.error('Failed to cleanup old phase:', err);
+                      
+                      this.logActivity('sprint_moved', 'sprint', sprintId, {
+                        from_phase: sprint.roadmap_phase_id,
+                        to_phase: targetPhaseId,
+                        new_position: position
+                      });
+
+                      resolve({
+                        success: true,
+                        sprint_id: sprintId,
+                        message: `Sprint moved to new position successfully`
+                      });
+                    }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+  }
+
+  async insertTask(
+    sprintId: string,
+    pdlPhaseNumber: number,
+    position: number,
+    task: {
+      task_description: string;
+      assignee?: string;
+      story_points?: number;
+    }
+  ): Promise<any> {
+    const taskId = `TASK_${Date.now()}`;
+    const now = new Date().toISOString();
+
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO tasks (
+          task_id, sprint_id, pdl_phase_number, task_description,
+          assignee, story_points, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          taskId,
+          sprintId,
+          pdlPhaseNumber,
+          task.task_description,
+          task.assignee || '',
+          task.story_points || 0,
+          'todo',
+          now,
+          now
+        ],
+        (err) => {
+          if (err) reject(err);
+          else {
+            this.logActivity('task_inserted', 'task', taskId, {
+              sprint_id: sprintId,
+              pdl_phase: pdlPhaseNumber,
+              position: position,
+              description: task.task_description
+            });
+
+            resolve({
+              success: true,
+              task_id: taskId,
+              position: position,
+              message: 'Task inserted successfully'
+            });
+          }
+        }
+      );
+    });
+  }
+
+  async deleteTask(taskId: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        "SELECT * FROM tasks WHERE task_id = ?",
+        [taskId],
+        (err, task: any) => {
+          if (err || !task) {
+            reject(err || new Error('Task not found'));
+            return;
+          }
+
+          this.db.run(
+            "DELETE FROM tasks WHERE task_id = ?",
+            [taskId],
+            (err) => {
+              if (err) reject(err);
+              else {
+                this.logActivity('task_deleted', 'task', taskId, { description: task.task_description });
+                resolve({
+                  success: true,
+                  deleted_task: task.task_description,
+                  message: 'Task deleted successfully'
+                });
+              }
+            }
+          );
+        }
+      );
+    });
+  }
+
+  async moveTask(taskId: string, targetSprintId: string, targetPdlPhase: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        "UPDATE tasks SET sprint_id = ?, pdl_phase_number = ?, updated_at = ? WHERE task_id = ?",
+        [targetSprintId, targetPdlPhase, new Date().toISOString(), taskId],
+        (err) => {
+          if (err) reject(err);
+          else {
+            this.logActivity('task_moved', 'task', taskId, {
+              target_sprint: targetSprintId,
+              target_pdl_phase: targetPdlPhase
+            });
+
+            resolve({
+              success: true,
+              task_id: taskId,
+              message: 'Task moved successfully'
+            });
+          }
+        }
+      );
+    });
+  }
+
+  async bulkUpdateTaskStatuses(
+    updates: Array<{
+      task_id: string;
+      status: 'todo' | 'in_progress' | 'done' | 'blocked';
+    }>
+  ): Promise<any> {
+    const results: any[] = [];
+    
+    for (const update of updates) {
+      try {
+        const result = await this.updateTaskStatus(update.task_id, update.status);
+        results.push(result);
+      } catch (error) {
+        results.push({ task_id: update.task_id, error: error });
+      }
+    }
+
+    return {
+      success: true,
+      updated: results.filter(r => !r.error).length,
+      failed: results.filter(r => r.error).length,
+      results
+    };
+  }
+
   // ==================== UTILITY OPERATIONS ====================
 
   private async logActivity(
