@@ -13,7 +13,10 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "dashboard:install": "node scripts/setup-dashboard.js --copy",
-    "dashboard:open": "node scripts/setup-dashboard.js --open"
+    "dashboard:open": "node scripts/setup-dashboard.js --open",
+    "dashboard:api": "node scripts/dashboard-api.js",
+    "dashboard:dev": "npm run dashboard:api & npm run dashboard:open",
+    "dashboard:enhanced": "cp dashboard/enhanced.html ~/.claude/data/pdl.html && echo 'Enhanced dashboard installed at file://~/.claude/data/pdl.html'"
   },
   "bin": {
     "mcp-pdl": "dist/cli/mcp-cli.js"

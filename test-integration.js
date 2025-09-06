@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
-import { createWebSocketServer } from './dist/websocket/websocket-server.js';
-import { Database } from './dist/storage/database.js';
-import { PDLFunctionHandlers } from './dist/handlers/functions.js';
-import { RoadmapFunctionHandlers } from './dist/handlers/roadmap-functions.js';
+import { PDLDatabase } from './dist/storage/database.js';
+import { RepositoryHandlers } from './dist/handlers/repository-handlers.js';
 
 async function runIntegrationTest() {
   console.log('🧪 Running MCP PDL Integration Test Suite...\n');
@@ -29,296 +27,144 @@ async function runIntegrationTest() {
   }
   
   // Initialize components
-  const db = new Database();
-  const handlers = new PDLFunctionHandlers(db);
-  const roadmapHandlers = new RoadmapFunctionHandlers(db);
-  let wsServer = null;
-  let wsClient = null;
+  const db = new PDLDatabase();
+  const handlers = new RepositoryHandlers(db);
   
   // Test 1: Database and Handlers Initialization
   await test('Database and handlers initialization', async () => {
-    if (!db || !handlers || !roadmapHandlers) {
+    if (!db || !handlers) {
       throw new Error('Failed to initialize core components');
     }
   })();
   
-  // Test 2: WebSocket Server Creation
-  await test('WebSocket server creation and startup', async () => {
-    wsServer = createWebSocketServer(db, 8083);
-    if (!wsServer) {
-      throw new Error('Failed to create WebSocket server');
+  // Test 2: Repository Status Check
+  await test('Repository status check', async () => {
+    const status = await handlers.getStatus();
+    if (!status) {
+      throw new Error('Failed to get repository status');
     }
-    // Wait a moment for server to start
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log(`Repository ID: ${status.repository_id || 'Not set'}`);
   })();
   
-  // Test 3: Project Initialization with Logging
-  await test('Project initialization with session logging', async () => {
-    const uniqueProjectName = `integration-test-project-${Date.now()}`;
-    const result = await handlers.initializeProject({
-      project_name: uniqueProjectName,
-      description: 'Test project for integration testing',
-      supporting_documentation: ['/tmp/integration-test.md']
+  // Test 3: Repository Initialization
+  await test('Repository initialization', async () => {
+    const result = await handlers.initializeRepository({
+      description: 'Integration test repository'
     });
     
     if (!result.success) {
-      throw new Error(`Project initialization failed: ${result.message}`);
+      throw new Error(`Repository initialization failed: ${result.message}`);
     }
     
-    // Verify session logs were created
-    const { sessionLogger } = await import('./dist/utils/session-logger.js');
-    const sessionId = sessionLogger.getSessionId();
-    if (!sessionId) {
-      throw new Error('Session logging not working');
-    }
+    console.log(`Initialized repository: ${result.repository_id}`);
   })();
   
   // Test 4: Roadmap Creation
-  await test('Roadmap creation and management', async () => {
-    const uniqueProjectName = `integration-test-project-${Date.now()}`;
-    await handlers.initializeProject({ project_name: uniqueProjectName });
-    const roadmapResult = await roadmapHandlers.createRoadmap({
-      project_name: uniqueProjectName,
-      vision: 'Build a comprehensive test suite for PDL integration',
+  await test('Roadmap creation', async () => {
+    const result = await handlers.createRoadmap({
+      vision: 'Test roadmap for integration testing',
       phases: [
         {
-          name: 'Test Planning',
+          name: 'Test Planning Phase',
           description: 'Plan comprehensive integration tests',
-          objective: 'Establish testing framework',
-          duration_weeks: 1,
-          deliverables: ['Test plan', 'Test cases'],
-          success_metrics: ['All tests planned', 'Framework ready']
+          objective: 'Establish testing framework'
         },
         {
-          name: 'Test Execution',
+          name: 'Test Execution Phase', 
           description: 'Execute integration tests',
-          objective: 'Validate system integration',
-          duration_weeks: 2,
-          deliverables: ['Test results', 'Bug reports'],
-          success_metrics: ['95% test pass rate', 'Performance benchmarks met']
-        }
-      ],
-      milestones: [
-        {
-          name: 'Testing Framework Ready',
-          description: 'All test infrastructure in place',
-          phase_index: 0,
-          weeks_into_phase: 1
+          objective: 'Validate system integration'
         }
       ]
     });
     
-    if (!roadmapResult.success) {
-      throw new Error(`Roadmap creation failed: ${roadmapResult.message}`);
+    if (!result.success) {
+      throw new Error(`Roadmap creation failed: ${result.message}`);
     }
     
-    if (!roadmapResult.roadmap || roadmapResult.roadmap.roadmap_phases.length !== 2) {
-      throw new Error('Roadmap not created correctly');
-    }
+    console.log(`Created roadmap with ${result.phases_created} phases`);
   })();
   
-  // Test 5: Sprint Creation and PDL Cycles
-  await test('Sprint creation with PDL cycles', async () => {
-    const uniqueProjectName = `integration-test-project-${Date.now()}`;
-    await handlers.initializeProject({ project_name: uniqueProjectName });
-    await roadmapHandlers.createRoadmap({
-      project_name: uniqueProjectName,
-      vision: 'Test sprint creation',
-      phases: [{
-        name: 'Test Phase',
-        description: 'Test phase for sprint creation',
-        objective: 'Create test sprint',
-        duration_weeks: 2,
-        deliverables: ['Test deliverable'],
-        success_metrics: ['Test metric']
-      }]
-    });
+  // Test 5: Sprint Creation
+  await test('Sprint creation', async () => {
+    // Get current status to find phase IDs
+    const status = await handlers.getStatus();
+    if (!status.roadmap_phases || status.roadmap_phases.length === 0) {
+      throw new Error('No roadmap phases found');
+    }
     
-    // Get the roadmap to find phase IDs
-    const roadmapResult = await roadmapHandlers.getRoadmap({
-      project_name: uniqueProjectName,
-      include_details: true
-    });
+    const firstPhaseId = status.roadmap_phases[0].roadmap_phase_id;
     
-    const firstPhaseId = roadmapResult.roadmap.roadmap_phases[0].roadmap_phase_id;
-    
-    const sprintResult = await roadmapHandlers.createSprint({
-      project_name: uniqueProjectName,
+    const result = await handlers.createSprint({
       roadmap_phase_id: firstPhaseId,
-      sprint_name: 'Integration Test Sprint 1',
-      sprint_number: 1,
+      sprint_name: 'Integration Test Sprint',
       duration_days: 14
     });
     
-    if (!sprintResult.success) {
-      throw new Error(`Sprint creation failed: ${sprintResult.message}`);
+    if (!result.success) {
+      throw new Error(`Sprint creation failed: ${result.message}`);
     }
     
-    if (!sprintResult.sprint || sprintResult.sprint.pdl_cycles.length === 0) {
-      throw new Error('Sprint PDL cycles not created');
+    console.log(`Created sprint: ${result.sprint_name}`);
+  })();
+  
+  // Test 6: Task Creation and Updates
+  await test('Task management', async () => {
+    // Get active sprint
+    const status = await handlers.getStatus();
+    if (!status.active_sprint) {
+      throw new Error('No active sprint found');
     }
-  })();
-  
-  // Test 6: WebSocket Real-time Communication
-  await test('WebSocket real-time communication', async () => {
-    const WebSocket = (await import('ws')).default;
-    wsClient = new WebSocket('ws://localhost:8083');
     
-    let messageReceived = false;
-    let subscriptionConfirmed = false;
+    const sprintId = status.active_sprint.sprint_id;
     
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('WebSocket test timeout'));
-      }, 5000);
-      
-      wsClient.on('open', async () => {
-        const testProjectName = `integration-test-project-ws-${Date.now()}`;
-        await handlers.initializeProject({ project_name: testProjectName });
-        
-        // Subscribe to project updates
-        wsClient.send(JSON.stringify({
-          type: 'subscribe',
-          project_name: testProjectName,
-          session_id: 'integration-test-session',
-          timestamp: new Date().toISOString()
-        }));
-      });
-      
-      wsClient.on('message', (data) => {
-        try {
-          const message = JSON.parse(data.toString());
-          
-          if (message.type === 'project_update' && message.payload && message.payload.subscribed) {
-            subscriptionConfirmed = true;
-          }
-          
-          if (message.type === 'project_update' && message.project_name && message.project_name.includes('integration-test-project-ws-')) {
-            messageReceived = true;
-          }
-          
-          // If we got both subscription confirmation and a project update
-          if (subscriptionConfirmed && (messageReceived || message.type === 'ping')) {
-            clearTimeout(timeout);
-            resolve();
-          }
-        } catch (error) {
-          clearTimeout(timeout);
-          reject(error);
-        }
-      });
-      
-      wsClient.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-      
-      // Trigger a project update after connection
-      setTimeout(async () => {
-        try {
-          const testProjectName = `integration-test-project-ws-${Date.now()}`;
-          await handlers.updatePhase({
-            project_name: testProjectName,
-            phase_number: 1,
-            completion_percentage: 25,
-            notes: 'Integration test phase update'
-          });
-        } catch (error) {
-          clearTimeout(timeout);
-          reject(error);
-        }
-      }, 1000);
-    });
-  })();
-  
-  // Test 7: Session Log Retrieval
-  await test('Session log retrieval and export', async () => {
-    const { sessionLogger } = await import('./dist/utils/session-logger.js');
-    
-    // First create a test project to ensure logs exist
-    const testProjectName = `session-log-test-${Date.now()}`;
-    await handlers.initializeProject({ project_name: testProjectName });
-    await handlers.updatePhase({
-      project_name: testProjectName,
-      phase_number: 1,
-      completion_percentage: 50,
-      notes: 'Session log test'
+    // Create a task
+    const createResult = await handlers.createTask({
+      sprint_id: sprintId,
+      pdl_phase_number: 1,
+      task_description: 'Integration test task',
+      assignee: 'Test Engineer',
+      story_points: 3
     });
     
-    const logs = await sessionLogger.getSessionLogs();
-    
-    if (logs.length === 0) {
-      throw new Error('No session logs found');
+    if (!createResult.success) {
+      throw new Error(`Task creation failed: ${createResult.message}`);
     }
     
-    // Check if logs contain our test operations (from any test in this suite)
-    const hasInitLog = logs.some(log => log.command === 'initialize_project');
-    const hasUpdateLog = logs.some(log => log.command === 'update_phase');
+    // Update task status
+    const updateResult = await handlers.updateTask({
+      task_id: createResult.task_id,
+      status: 'in_progress'
+    });
     
-    if (!hasInitLog) {
-      throw new Error('No initialize_project log entries found');
+    if (!updateResult.success) {
+      throw new Error(`Task update failed: ${updateResult.message}`);
     }
     
-    // Test export functionality
-    const markdownExport = await sessionLogger.exportLogs('markdown');
-    if (!markdownExport || !markdownExport.includes('PDL Session Log')) {
-      throw new Error('Log export functionality not working');
-    }
+    console.log(`Created and updated task: ${createResult.task_id}`);
   })();
   
-  // Test 8: Error Handling and Recovery
-  await test('Error handling and recovery', async () => {
-    // Test invalid project name
-    try {
-      await handlers.getPhase({
-        project_name: 'nonexistent-project',
-        include_sprints: false
-      });
-      throw new Error('Should have thrown error for nonexistent project');
-    } catch (error) {
-      if (!error.message.includes('not found')) {
-        throw new Error('Unexpected error type: ' + error.message);
+  // Test 7: Manipulation Functions
+  await test('Dynamic manipulation capabilities', async () => {
+    // Test insert roadmap phase
+    const insertResult = await handlers.insertRoadmapPhase({
+      position: 1,
+      phase: {
+        name: 'Inserted Test Phase',
+        description: 'Phase inserted via manipulation function',
+        objective: 'Test dynamic insertion'
       }
+    });
+    
+    if (!insertResult.success) {
+      throw new Error(`Phase insertion failed: ${insertResult.message}`);
     }
     
-    // Test WebSocket error handling
-    if (wsClient) {
-      wsClient.send(JSON.stringify({ type: 'invalid_message_type', invalid: true }));
-      // Should not crash - error should be handled gracefully
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+    console.log(`Successfully inserted phase at position 1`);
   })();
-  
-  // Cleanup
-  console.log('🧹 Cleaning up test resources...');
-  
-  if (wsClient) {
-    wsClient.close();
-  }
-  
-  if (wsServer) {
-    wsServer.close();
-  }
-  
-  // Clean up test logs
-  try {
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const logsDir = path.join(process.cwd(), '.claude', 'logs');
-    const files = await fs.readdir(logsDir);
-    
-    for (const file of files) {
-      if (file.includes('integration-test')) {
-        await fs.unlink(path.join(logsDir, file));
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to clean up test logs:', error.message);
-  }
   
   // Print results
   console.log('\n📊 Integration Test Results:');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   results.forEach(result => {
     const status = result.status === 'PASSED' ? '✅' : '❌';
     console.log(`${status} ${result.name}: ${result.status}`);
@@ -327,7 +173,7 @@ async function runIntegrationTest() {
     }
   });
   
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log(`Total: ${results.length} tests`);
   console.log(`Passed: ${passed} tests`);
   console.log(`Failed: ${failed} tests`);

@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDL Dashboard - Enhanced</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #1a1a24;
+            --bg-tertiary: #252538;
+            --bg-card: #1e1e2e;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border: #374151;
+            --border-hover: #4b5563;
+            --shadow: rgba(0, 0, 0, 0.25);
+            --glow: rgba(59, 130, 246, 0.15);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        /* Layout */
+        .dashboard {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .tab-button:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+        
+        .tab-button.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .refresh-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .refresh-btn:hover {
+            background: var(--bg-card);
+            border-color: var(--border-hover);
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-connected {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .status-disconnected {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        /* Main content */
+        .main-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .stat-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow);
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .stat-icon.projects { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); }
+        .stat-icon.sprints { background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); }
+        .stat-icon.phases { background: linear-gradient(135deg, var(--accent-orange), var(--accent-red)); }
+        .stat-icon.tasks { background: linear-gradient(135deg, var(--accent-purple), var(--accent-orange)); }
+        
+        .stat-content h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-content p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        /* Project cards */
+        .projects-grid {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .project-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        
+        .project-card:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 12px 40px var(--shadow);
+        }
+        
+        .project-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .project-meta {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .project-status {
+            padding: 0.5rem 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .status-planning {
+            background: var(--accent-orange);
+            color: white;
+        }
+        
+        .status-completed {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+        /* PDL Phases */
+        .pdl-phases {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            margin: 1.5rem;
+        }
+        
+        .phase-card {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .phase-card:hover {
+            background: var(--bg-secondary);
+            transform: scale(1.02);
+        }
+        
+        .phase-card.current {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+        
+        .phase-card.completed {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .phase-card.blocked {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .phase-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .phase-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        
+        .phase-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .phase-progress-bar {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            transition: width 0.3s ease;
+        }
+        
+        /* Sprints section */
+        .sprints-section {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .collapse-toggle {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .collapse-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        .sprint-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        
+        .sprint-card:hover {
+            border-color: var(--border-hover);
+        }
+        
+        .sprint-header {
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .sprint-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .sprint-meta {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .sprint-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .tasks-section {
+            padding: 0 1rem 1rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .tasks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        .task-item {
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--accent-blue);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .task-item:hover {
+            background: var(--bg-card);
+            transform: translateX(4px);
+        }
+        
+        .task-item.done {
+            opacity: 0.6;
+            text-decoration: line-through;
+            border-left-color: var(--accent-green);
+        }
+        
+        .task-item.blocked {
+            border-left-color: var(--accent-red);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 2rem;
+        }
+        
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px var(--shadow);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.5rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .modal-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            max-height: calc(90vh - 120px);
+        }
+        
+        /* Filters */
+        .filters {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .filter-select {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            min-width: 200px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--glow);
+        }
+        
+        /* Loading and empty states */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state h2 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .error {
+            background: var(--accent-red);
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-tabs {
+                justify-content: center;
+            }
+            
+            .pdl-phases {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .tasks-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-down {
+            animation: slideDown 0.2s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; max-height: 0; }
+            to { opacity: 1; max-height: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard" x-data="enhancedPDLDashboard()">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-rocket"></i> PDL Dashboard
+                </div>
+                
+                <nav class="nav-tabs">
+                    <button class="tab-button" :class="{'active': activeTab === 'overview'}" @click="activeTab = 'overview'">
+                        <i class="fas fa-chart-line"></i> Overview
+                    </button>
+                    <button class="tab-button" :class="{'active': activeTab === 'projects'}" @click="activeTab = 'projects'">
+                        <i class="fas fa-project-diagram"></i> Projects
+                    </button>
+                    <button class="tab-button" :class="{'active': activeTab === 'activity'}" @click="activeTab = 'activity'">
+                        <i class="fas fa-history"></i> Activity
+                    </button>
+                </nav>
+                
+                <div class="header-actions">
+                    <button class="refresh-btn" @click="loadDatabase()" :disabled="loading">
+                        <i class="fas fa-sync-alt" :class="{'fa-spin': loading}"></i>
+                        Refresh
+                    </button>
+                    <div class="status-badge" :class="{'status-connected': connected, 'status-disconnected': !connected}">
+                        <i class="fas fa-circle"></i>
+                        <span x-text="connected ? 'Connected' : 'Offline'"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Filters -->
+        <div class="filters" x-show="activeTab === 'projects'">
+            <label for="project-filter">Filter Projects:</label>
+            <select id="project-filter" class="filter-select" x-model="selectedProject" @change="selectProject()">
+                <option value="">All Projects</option>
+                <template x-for="project in projects" :key="project.project_name">
+                    <option :value="project.project_name" x-text="project.project_name"></option>
+                </template>
+            </select>
+        </div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Loading State -->
+            <div x-show="loading" class="loading">
+                <div class="spinner"></div>
+                <span>Loading PDL data...</span>
+            </div>
+            
+            <!-- Error State -->
+            <div x-show="error" class="error" x-text="error"></div>
+            
+            <!-- Overview Tab -->
+            <div x-show="activeTab === 'overview' && !loading && !error" class="fade-in">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon projects">
+                            <i class="fas fa-folder"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.totalProjects"></h3>
+                            <p>Total Projects</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon sprints">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.activeSprints"></h3>
+                            <p>Active Sprints</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon phases">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.completedPhases"></h3>
+                            <p>Completed Phases</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon tasks">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 x-text="stats.totalTasks"></h3>
+                            <p>Total Tasks</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Projects Tab -->
+            <div x-show="activeTab === 'projects' && !loading && !error" class="fade-in">
+                <div class="projects-grid">
+                    <template x-for="project in filteredProjects" :key="project.project_name">
+                        <div class="project-card">
+                            <div class="project-header">
+                                <div>
+                                    <h3 class="project-title" x-text="project.project_name"></h3>
+                                    <div class="project-meta">
+                                        <span x-text="project.description || 'No description'"></span>
+                                        <span x-show="project.created_at"> • Created: <span x-text="formatDate(project.created_at)"></span></span>
+                                    </div>
+                                </div>
+                                <div class="project-status status-active">
+                                    Phase <span x-text="project.current_phase || 1"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="pdl-phases">
+                                <template x-for="phase in getPhases(project)" :key="phase.number">
+                                    <div class="phase-card" 
+                                         :class="{
+                                             'current': phase.status === 'in_progress',
+                                             'completed': phase.status === 'completed',
+                                             'blocked': phase.status === 'blocked'
+                                         }"
+                                         @click="openPhaseModal(project, phase)">
+                                        <div class="phase-number" x-text="phase.number"></div>
+                                        <div class="phase-name" x-text="phase.name"></div>
+                                        <div x-show="phase.completion_percentage > 0" class="phase-progress">
+                                            <div class="phase-progress-bar" :style="`width: ${phase.completion_percentage}%`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div x-show="project.sprints && project.sprints.length > 0" class="sprints-section">
+                                <div class="section-header">
+                                    <h4 class="section-title">Sprints</h4>
+                                    <button class="collapse-toggle" @click="project.sprintsCollapsed = !project.sprintsCollapsed">
+                                        <i class="fas fa-chevron-down" :class="{'collapsed': project.sprintsCollapsed}"></i>
+                                    </button>
+                                </div>
+                                
+                                <div x-show="!project.sprintsCollapsed" class="slide-down">
+                                    <template x-for="sprint in project.sprints" :key="sprint.sprint_id">
+                                        <div class="sprint-card">
+                                            <div class="sprint-header" @click="sprint.tasksCollapsed = !sprint.tasksCollapsed">
+                                                <div>
+                                                    <div class="sprint-title" x-text="sprint.sprint_name"></div>
+                                                    <div class="sprint-meta">
+                                                        <span x-text="sprint.tasks?.length || 0"></span> tasks
+                                                    </div>
+                                                </div>
+                                                <div class="sprint-status" 
+                                                     :class="{
+                                                         'status-active': sprint.status === 'active',
+                                                         'status-completed': sprint.status === 'completed',
+                                                         'status-planning': sprint.status === 'planning'
+                                                     }"
+                                                     x-text="sprint.status"></div>
+                                            </div>
+                                            
+                                            <div x-show="!sprint.tasksCollapsed && sprint.tasks && sprint.tasks.length > 0" 
+                                                 class="tasks-section slide-down">
+                                                <div class="tasks-grid">
+                                                    <template x-for="task in sprint.tasks" :key="task.task_id">
+                                                        <div class="task-item" 
+                                                             :class="{
+                                                                 'done': task.status === 'done',
+                                                                 'blocked': task.status === 'blocked'
+                                                             }"
+                                                             @click="openTaskModal(project, sprint, task)">
+                                                            <span x-text="task.description"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- Empty state -->
+                <div x-show="!loading && !error && filteredProjects.length === 0" class="empty-state">
+                    <i class="fas fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted);"></i>
+                    <h2>No Projects Found</h2>
+                    <p>Initialize a project using the PDL MCP server to get started.</p>
+                </div>
+            </div>
+            
+            <!-- Activity Tab -->
+            <div x-show="activeTab === 'activity' && !loading && !error" class="fade-in">
+                <div class="project-card">
+                    <div class="project-header">
+                        <h3 class="project-title">Recent Activity</h3>
+                    </div>
+                    <div style="padding: 1.5rem;">
+                        <div x-show="activityLog.length === 0" class="empty-state">
+                            <i class="fas fa-history" style="font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted);"></i>
+                            <h3>No Activity Yet</h3>
+                            <p>Project activity will appear here as you work.</p>
+                        </div>
+                        
+                        <template x-for="entry in activityLog" :key="entry.id">
+                            <div class="task-item" style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div>
+                                        <div x-text="entry.message"></div>
+                                        <div style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem;">
+                                            <span x-text="entry.project"></span> • <span x-text="formatDate(entry.timestamp)"></span>
+                                        </div>
+                                    </div>
+                                    <div class="status-badge" x-text="entry.type"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Modal -->
+        <div x-show="modal.open" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="modal-overlay" 
+             @click="modal.open = false">
+            
+            <div class="modal" @click.stop="">
+                <div class="modal-header">
+                    <h3 class="modal-title" x-text="modal.title"></h3>
+                    <button class="modal-close" @click="modal.open = false">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-content" x-html="modal.content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function enhancedPDLDashboard() {
+            return {
+                activeTab: 'overview',
+                loading: true,
+                error: null,
+                connected: false,
+                projects: [],
+                filteredProjects: [],
+                selectedProject: '',
+                activityLog: [],
+                modal: {
+                    open: false,
+                    title: '',
+                    content: ''
+                },
+                stats: {
+                    totalProjects: 0,
+                    activeSprints: 0,
+                    completedPhases: 0,
+                    totalTasks: 0
+                },
+                
+                async init() {
+                    await this.loadDatabase();
+                    this.startPolling();
+                },
+                
+                async loadDatabase() {
+                    this.loading = true;
+                    this.error = null;
+                    
+                    try {
+                        const projects = await this.fetchFromAPI();
+                        this.projects = projects.map(p => ({ ...p, sprintsCollapsed: false }));
+                        this.filteredProjects = this.projects;
+                        this.updateStats();
+                        this.generateActivityLog();
+                        this.connected = true;
+                    } catch (err) {
+                        this.error = 'Failed to load PDL data. Using demo data.';
+                        this.connected = false;
+                        this.projects = await this.getSampleData();
+                        this.filteredProjects = this.projects;
+                        this.updateStats();
+                        console.error(err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async fetchFromAPI() {
+                    const endpoints = [
+                        '/api/pdl/projects',
+                        'http://localhost:3001/pdl',
+                        'http://localhost:8080/pdl'
+                    ];
+                    
+                    for (const endpoint of endpoints) {
+                        try {
+                            const response = await fetch(endpoint, {
+                                method: 'GET',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                return Array.isArray(data) ? data : data.projects || [];
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                    
+                    throw new Error('No API endpoints available');
+                },
+                
+                async getSampleData() {
+                    return [
+                        {
+                            project_name: "mcp_pdl",
+                            project_id: "-home-persist-repos-lib-mcp-pdl",
+                            description: "PDL MCP Server - Enhanced Dashboard Implementation",
+                            created_at: new Date().toISOString(),
+                            current_phase: 4,
+                            phases: [
+                                { number: 1, name: "Discovery", status: "completed", completion_percentage: 100 },
+                                { number: 2, name: "Definition", status: "completed", completion_percentage: 100 },
+                                { number: 3, name: "Design", status: "completed", completion_percentage: 100 },
+                                { number: 4, name: "Development", status: "in_progress", completion_percentage: 85 },
+                                { number: 5, name: "Testing", status: "not_started", completion_percentage: 0 },
+                                { number: 6, name: "Launch", status: "not_started", completion_percentage: 0 },
+                                { number: 7, name: "Post-Launch", status: "not_started", completion_percentage: 0 }
+                            ],
+                            sprints: [
+                                {
+                                    sprint_id: "sprint-1",
+                                    sprint_name: "Enhanced Dashboard MVP",
+                                    status: "active",
+                                    tasksCollapsed: false,
+                                    tasks: [
+                                        { task_id: "1", description: "Redesign with modern dark theme", status: "done" },
+                                        { task_id: "2", description: "Add modal system for detailed views", status: "in_progress" },
+                                        { task_id: "3", description: "Implement collapsible sprint tasks", status: "in_progress" },
+                                        { task_id: "4", description: "Add activity feed tab", status: "todo" },
+                                        { task_id: "5", description: "Connect to real PDL database", status: "blocked" }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            project_name: "demo_project",
+                            project_id: "-demo-project",
+                            description: "Demo project for testing dashboard features",
+                            created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                            current_phase: 2,
+                            phases: [
+                                { number: 1, name: "Discovery", status: "completed", completion_percentage: 100 },
+                                { number: 2, name: "Definition", status: "in_progress", completion_percentage: 60 },
+                                { number: 3, name: "Design", status: "not_started", completion_percentage: 0 },
+                                { number: 4, name: "Development", status: "not_started", completion_percentage: 0 },
+                                { number: 5, name: "Testing", status: "not_started", completion_percentage: 0 },
+                                { number: 6, name: "Launch", status: "not_started", completion_percentage: 0 },
+                                { number: 7, name: "Post-Launch", status: "not_started", completion_percentage: 0 }
+                            ],
+                            sprints: []
+                        }
+                    ];
+                },
+                
+                selectProject() {
+                    if (this.selectedProject === '') {
+                        this.filteredProjects = this.projects;
+                    } else {
+                        this.filteredProjects = this.projects.filter(p => p.project_name === this.selectedProject);
+                    }
+                },
+                
+                getPhases(project) {
+                    const phaseNames = [
+                        "Discovery",
+                        "Definition",
+                        "Design",
+                        "Development",
+                        "Testing",
+                        "Launch",
+                        "Growth"
+                    ];
+                    
+                    if (project.phases) {
+                        return project.phases.map(p => ({
+                            ...p,
+                            name: p.name.split(' ')[0] || phaseNames[p.number - 1]
+                        }));
+                    }
+                    
+                    return phaseNames.map((name, i) => ({
+                        number: i + 1,
+                        name: name,
+                        status: i + 1 < (project.current_phase || 1) ? 'completed' : 
+                                i + 1 === (project.current_phase || 1) ? 'in_progress' : 'not_started',
+                        completion_percentage: i + 1 < (project.current_phase || 1) ? 100 : 
+                                              i + 1 === (project.current_phase || 1) ? 50 : 0
+                    }));
+                },
+                
+                updateStats() {
+                    this.stats.totalProjects = this.projects.length;
+                    this.stats.activeSprints = this.projects.reduce((sum, p) => 
+                        sum + (p.sprints?.filter(s => s.status === 'active').length || 0), 0);
+                    this.stats.completedPhases = this.projects.reduce((sum, p) => 
+                        sum + (p.phases?.filter(ph => ph.status === 'completed').length || 0), 0);
+                    this.stats.totalTasks = this.projects.reduce((sum, p) => 
+                        sum + (p.sprints?.reduce((t, s) => t + (s.tasks?.length || 0), 0) || 0), 0);
+                },
+                
+                generateActivityLog() {
+                    this.activityLog = [
+                        {
+                            id: 1,
+                            message: "Enhanced dashboard design completed",
+                            project: "mcp_pdl",
+                            type: "completed",
+                            timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+                        },
+                        {
+                            id: 2,
+                            message: "Sprint 'Enhanced Dashboard MVP' started",
+                            project: "mcp_pdl", 
+                            type: "started",
+                            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+                        },
+                        {
+                            id: 3,
+                            message: "Phase 4 (Development) progress updated to 85%",
+                            project: "mcp_pdl",
+                            type: "updated",
+                            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
+                        }
+                    ];
+                },
+                
+                openPhaseModal(project, phase) {
+                    const phaseDetails = this.getPhaseDetails(phase);
+                    this.modal.title = `Phase ${phase.number}: ${phase.name}`;
+                    this.modal.content = `
+                        <div style="space-y: 1rem;">
+                            <div>
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Status</h4>
+                                <div class="status-badge ${phase.status === 'completed' ? 'status-completed' : phase.status === 'in_progress' ? 'status-active' : 'status-planning'}">${phase.status.replace('_', ' ')}</div>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Progress</h4>
+                                <div style="background: var(--bg-tertiary); border-radius: 0.5rem; height: 8px; margin-bottom: 0.5rem;">
+                                    <div style="background: var(--accent-blue); height: 100%; border-radius: 0.5rem; width: ${phase.completion_percentage || 0}%; transition: width 0.3s;"></div>
+                                </div>
+                                <span style="color: var(--text-secondary);">${phase.completion_percentage || 0}% complete</span>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Description</h4>
+                                <p style="color: var(--text-secondary); line-height: 1.6;">${phaseDetails.description}</p>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Key Activities</h4>
+                                <ul style="color: var(--text-secondary); padding-left: 1rem;">
+                                    ${phaseDetails.activities.map(activity => `<li style="margin-bottom: 0.25rem;">${activity}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    this.modal.open = true;
+                },
+                
+                openTaskModal(project, sprint, task) {
+                    this.modal.title = `Task: ${task.description}`;
+                    this.modal.content = `
+                        <div style="space-y: 1rem;">
+                            <div>
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Status</h4>
+                                <div class="status-badge ${task.status === 'done' ? 'status-completed' : task.status === 'in_progress' ? 'status-active' : task.status === 'blocked' ? 'status-disconnected' : 'status-planning'}">${task.status.replace('_', ' ')}</div>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Sprint</h4>
+                                <p style="color: var(--text-secondary);">${sprint.sprint_name}</p>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Project</h4>
+                                <p style="color: var(--text-secondary);">${project.project_name}</p>
+                            </div>
+                            
+                            ${task.assignee ? `
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Assignee</h4>
+                                <p style="color: var(--text-secondary);">${task.assignee}</p>
+                            </div>
+                            ` : ''}
+                            
+                            ${task.story_points ? `
+                            <div style="margin-top: 1.5rem;">
+                                <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Story Points</h4>
+                                <p style="color: var(--text-secondary);">${task.story_points}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    this.modal.open = true;
+                },
+                
+                getPhaseDetails(phase) {
+                    const details = {
+                        1: {
+                            description: "User research, market analysis, and ideation to validate the problem and explore potential solutions.",
+                            activities: ["User interviews", "Market research", "Competitive analysis", "Problem definition", "Opportunity assessment"]
+                        },
+                        2: {
+                            description: "Requirements gathering, technical feasibility analysis, and resource planning.",
+                            activities: ["Requirements documentation", "Technical specification", "Resource estimation", "Success metrics definition", "Scope planning"]
+                        },
+                        3: {
+                            description: "UX/UI design, prototyping, and user testing to create the product experience.",
+                            activities: ["Wireframing", "UI design", "Prototyping", "User testing", "Design system creation"]
+                        },
+                        4: {
+                            description: "Code development, integration, and technical implementation of the product.",
+                            activities: ["Architecture design", "Feature development", "API implementation", "Database design", "Code review"]
+                        },
+                        5: {
+                            description: "Comprehensive testing, quality assurance, and performance validation.",
+                            activities: ["Test planning", "Unit testing", "Integration testing", "Performance testing", "Bug fixing"]
+                        },
+                        6: {
+                            description: "Release preparation, deployment, and launch coordination.",
+                            activities: ["Release planning", "Deployment setup", "Launch coordination", "Monitoring setup", "Documentation"]
+                        },
+                        7: {
+                            description: "Performance monitoring, user feedback analysis, and iterative improvements.",
+                            activities: ["Analytics setup", "User feedback collection", "Performance monitoring", "Feature optimization", "Growth planning"]
+                        }
+                    };
+                    
+                    return details[phase.number] || { description: "Phase details not available", activities: [] };
+                },
+                
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                
+                startPolling() {
+                    setInterval(async () => {
+                        if (this.connected && !this.loading) {
+                            try {
+                                const projects = await this.fetchFromAPI();
+                                this.projects = projects.map(p => ({ ...p, sprintsCollapsed: false }));
+                                this.selectProject();
+                                this.updateStats();
+                            } catch (e) {
+                                console.warn('Polling failed:', e.message);
+                            }
+                        }
+                    }, 30000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

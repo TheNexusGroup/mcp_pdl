@@ -401,13 +401,22 @@ export class PDLDatabase {
             roadmap_phase_id: roadmapPhaseId
           });
 
-          resolve({
-            success: true,
-            sprint_id: sprintId,
-            sprint_name: sprintName,
-            sprint_number: sprintNumber,
-            message: `Sprint "${sprintName}" created with 7 PDL phases`
-          });
+          // Update sprint status to active
+          this.db.run(
+            "UPDATE sprints SET status = 'active' WHERE sprint_id = ?",
+            [sprintId],
+            (err) => {
+              if (err) console.error('Failed to activate sprint:', err);
+              
+              resolve({
+                success: true,
+                sprint_id: sprintId,
+                sprint_name: sprintName,
+                sprint_number: sprintNumber,
+                message: `Sprint "${sprintName}" created with 7 PDL phases and activated`
+              });
+            }
+          );
         }
       );
     });
